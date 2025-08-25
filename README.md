@@ -17,10 +17,18 @@ Este repositorio contiene el código, datos y documentación del proyecto **“d
 - Detectar brechas territoriales (alta vulnerabilidad vs. baja inversión).
 
 ### 2. Stack Tecnológico
-![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)
-- **Lenguaje:** Python  
-- **Versión:** 3.12  
-- **Gestor de dependencias:** Poetry
+### 2. Stack Tecnológico
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg) ![Jupyter](https://img.shields.io/badge/jupyter-notebooks-orange.svg) ![R](https://img.shields.io/badge/R-4.x-blue.svg) ![Power%20BI](https://img.shields.io/badge/Power%20BI-dashboards-yellow.svg) ![Poetry](https://img.shields.io/badge/poetry-deps%20%26%20envs-blueviolet.svg)
+
+- **Lenguajes y entornos**
+  - **Python 3.12**: análisis estadístico y modelos de IA/ML (pandas, numpy, scikit-learn, statsmodels, matplotlib/plotly).
+  - **Jupyter Notebooks**: EDA, visualizaciones, experimentación y transformación de datos.
+  - **R (4.x)**: análisis estadístico complementario (tidyverse, dplyr, ggplot2). *RStudio no es requisito.*
+- **Gestión de dependencias**
+  - **Poetry**: manejo de paquetes y entornos aislados.
+- **Visualización e informes**
+  - **Power BI**: tableros, tablas y reportes de indicadores.
+
 
 ### 3. Cómo Empezar
 
