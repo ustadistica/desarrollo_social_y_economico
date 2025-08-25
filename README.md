@@ -5,7 +5,7 @@
 ## Consultorio de Estadística y Ciencia de Datos  
 **Universidad Santo Tomás**
 
-**Resposables**
+**Responsables**
 - Angela Orjuela Guevara
 - Ingrid Umbacia Ramirez
 - Andres Perez Moreno
