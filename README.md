@@ -38,7 +38,6 @@ La contratación pública en Colombia es uno de los principales mecanismos de in
 Este proyecto integra datos del **SECOP II** y del **DANE**, con el fin de evaluar la relación entre el gasto público y las condiciones socioeconómicas de los territorios. De esta forma, se busca aportar evidencia para la discusión sobre **equidad regional, desarrollo social y transparencia** en el uso de los recursos estatales.  
 
 ### 2. Stack Tecnológico
-### 2. Stack Tecnológico
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg) ![Jupyter](https://img.shields.io/badge/jupyter-notebooks-orange.svg) ![R](https://img.shields.io/badge/R-4.x-blue.svg) ![Power%20BI](https://img.shields.io/badge/Power%20BI-dashboards-yellow.svg) ![Poetry](https://img.shields.io/badge/poetry-deps%20%26%20envs-blueviolet.svg)
 
 ## Lenguajes, entornos y herramientas
