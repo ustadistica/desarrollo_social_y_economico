@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "desarrollo_social_y_economico"
+version = "0.1.0"
+description = ""
+authors = [
+    "Angela Orjuela",
+    "Ingrid Umbacia",
+    "Andres Perez",
+    "Alejandra Benedetti",
+    "Diego Gomez",
+    "Maria Jose Galindo"
+]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "3.12.*"
+pandas = "^2.2.2"
+numpy = "^1.26.0"
+scikit-learn = "^1.5.0"
+statsmodels = "^0.14.2"
+matplotlib = "^3.9.0"
+plotly = "^5.22.0"
+requests = "^2.32.0"
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
