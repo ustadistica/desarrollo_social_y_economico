@@ -112,7 +112,7 @@ Luego, en VS Code: abrir un `.ipynb` → seleccionar kernel **Python
 
     desarrollo_social_y_economico/
     ├─ datos/
-    │  ├─ crudos/            # fuentes originales (DANE, SECOP II)
+    │  ├─ codigos de descarga de datos            # fuentes originales (DANE, SECOP II)
     │  ├─ procesados/        # datasets limpios/curados
     │  ├─ modelos/           # artefactos de modelos
     │  └─ diccionarios/      # diccionarios de variables / metadatos
@@ -159,6 +159,7 @@ de variables\
 objeto, fechas, estado, valor\
 - Acceso: **API SODA (Socrata)** y CSV (Datos Abiertos Colombia)\
 - Observaciones: calidad variable; alto volumen → limpiar/filtrar
+- La descarga de datos se realizo en  un google colab y los datos quedaron guardados en un folder de google drive de ruta '/content/drive/MyDrive/DatosAPI_Trimestral_Parquet/' en archivos .parquet y un sqcrti para correr diario y actualizar los datos con fecha de publicacion. y descargar agrupado por fecha de publicacion.  con el correo: consultoriadesarrollo03@gmail.com  clave: Consultorio1*
 
 ------------------------------------------------------------------------
 
