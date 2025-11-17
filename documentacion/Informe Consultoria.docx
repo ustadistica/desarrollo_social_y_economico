@@ -1,4 +1,4 @@
-## 1. Contexto general del proyecto
+ 1. Contexto general del proyecto
 
 El repositorio desarrollo_social_y_economico corresponde al proyecto del Consultorio de Estadística y Ciencia de Datos de la Universidad Santo Tomás, cuyo objetivo es analizar la relación entre:
 
@@ -278,4 +278,5 @@ Fortalecimiento de la documentación y automatización
 Incorporar al repositorio los notebooks de exploración y consultas principales.
 
 Documentar scripts de actualización periódica de SECOP II para mantener la base analítica al día.
+
 
