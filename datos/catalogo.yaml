@@ -1,0 +1,20 @@
+# Catalogo de Datos del Proyecto
+# ================================
+# Cada entrada incluye el identificador Socrata, la URL, campos clave
+# y la periodicidad de actualizacion.
+#
+# fuentes:
+#   - nombre: "Nombre descriptivo del dataset"
+#     plataforma: "datos.gov.co"
+#     socrata_id: "xxxx-xxxx"
+#     url: "https://www.datos.gov.co/resource/xxxx-xxxx"
+#     formato: "csv"
+#     campos_clave:
+#       - campo1
+#       - campo2
+#     periodicidad: "trimestral"
+#     ultimo_pull: null
+#     notas: "Descripcion breve"
+
+fuentes: []
+  # TODO: Agregar las fuentes de datos del proyecto
