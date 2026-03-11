@@ -39,15 +39,40 @@ vulnerabilidad y características de la población en los territorios?
 ![Jupyter](https://img.shields.io/badge/jupyter-notebooks-orange.svg)
 ![Power%20BI](https://img.shields.io/badge/Power%20BI-dashboards-yellow.svg)
 ![Poetry](https://img.shields.io/badge/poetry-deps%20%26%20envs-blueviolet.svg)
+![DuckDB](https://img.shields.io/badge/DuckDB-analytics-purple.svg)
 
 **Lenguajes, entornos y herramientas** - **Python 3.12**: `pandas`,
-`numpy`, `scikit-learn`, `statsmodels`, `matplotlib`, `plotly` -
+`numpy`, `scikit-learn`, `statsmodels`, `matplotlib`, `plotly`, `duckdb` -
 **Jupyter Notebooks** para EDA/modelado - **Power BI** (opcional) para
-tableros
+tableros - **DuckDB** para análisis OLAP rápido
 
 **Gestión de dependencias y entorno**\
 - **Poetry** (sin pyenv). El proyecto **no** se instala como paquete:
 `package-mode = false`.
+
+---
+
+## 2.1 Modelo Estrella SECOP
+
+El proyecto utiliza un **modelo estrella** para almacenar los datos de contratación pública:
+
+| Tabla | Tipo | Registros | Descripción |
+|-------|------|-----------|-------------|
+| `F_Proceso` | Hechos | 19,000 | Procesos de contratación |
+| `D_Entidad` | Dimensión | 2,941 | Entidades contratantes |
+| `D_Proveedor` | Dimensión | 6,421 | Proveedores |
+| `D_Tiempo` | Dimensión | 4 | Fechas |
+| `D_UbiEntidad` | Dimensión | 801 | Ubicación entidades |
+| `D_UbiProveedor` | Dimensión | 608 | Ubicación proveedores |
+| `D_Categoria` | Dimensión | 2,083 | Categorías de objeto |
+| `D_Modalidad` | Dimensión | 15 | Modalidades |
+| `D_TipoContrato` | Dimensión | 19 | Tipos de contrato |
+
+**Bases de datos:**
+- **SQLite:** `modelo_estrella_sqlite/Proyect_SECOP.db` (origen)
+- **DuckDB:** `modelo_estrella_duckdb/Proyect_SECOP.duckdb` (análisis)
+
+**Documentación completa:** Ver `modelo_estrella_duckdb/README_VERIFICACION.md`
 
 ------------------------------------------------------------------------
 
@@ -78,7 +103,21 @@ pip install --user poetry
 python -m poetry install
 ```
 
-4)  **Usar el entorno de Poetry** (dos opciones):
+4)  **Cargar datos al modelo estrella** (si es necesario)
+
+``` powershell
+# Ejecutar el ETL para cargar datos desde los Parquet
+python load_star_model.py
+```
+
+5)  **Verificar migración SQLite → DuckDB**
+
+``` powershell
+# Ejecutar migración y verificación de integridad
+python verify_migration.py
+```
+
+6)  **Usar el entorno de Poetry** (dos opciones):
 
 **Opción A -- Ejecutar comandos dentro del venv sin activarlo**
 
