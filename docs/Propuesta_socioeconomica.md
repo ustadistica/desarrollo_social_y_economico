@@ -23,6 +23,44 @@ Para este análisis, se utilizarán tres fuentes de datos fundamentales:
 ---
 
 ## 3. Preguntas de Investigación 
+### 3.1 Dimensión Social
+
+**Conjuntos de Datos**
+
+- CNPV (DANE)  
+- Índice de Pobreza Multidimensional (IPM)  
+- Necesidades Básicas Insatisfechas (NBI)
+
+**Preguntas**
+
+- ¿Cómo se distribuye la vulnerabilidad social en las regiones?  
+- ¿El gasto público llega a las zonas con mayor déficit habitacional?
+
+**Entregables**
+
+- Mapa de brechas sociales  
+- Caracterización demográfica por municipio
+
+---
+
+### 3.2 Dimensión Económica
+**Conjuntos de Datos**
+
+- Censo Económico Nacional Urbano (CENU)  
+- SECOP II  
+- Encuesta de Micronegocios (EMICRON)
+
+**Preguntas**
+
+- ¿Coincide el gasto público con la vocación productiva local?  
+- ¿Qué porcentaje de la contratación estatal beneficia a la *Economía Popular*?
+
+**Entregables**
+
+- Matriz de correlación entre inversión pública (SECOP II) y densidad empresarial local (CENU)
+
+---
+
 Un análisis socioeconómico de alto nivel requiere preguntas que crucen ambas realidades:
 
 1.  **¿Capacidad o Exclusión?**: ¿Existe una correlación entre la baja densidad de empresas locales (según el CENU) y la alta tasa de contratos adjudicados a empresas de otras ciudades en el SECOP II?
