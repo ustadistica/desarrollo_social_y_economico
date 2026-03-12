@@ -44,7 +44,7 @@ Para un trabajo objetivo, se recomienda extraer datos crudos de las siguientes f
 
 ---
 
-## 4. Otras Posibles Preguntas de Investigación 
+## 5. Otras Posibles Preguntas de Investigación 
 1. **Sintonía Territorial:** ¿Coinciden los sectores con mayor inversión en SECOP II con las vocaciones económicas identificadas en el Censo Económico Nacional Urbano (CENU)?
 2. **Impacto en la Economía Popular:** ¿Qué porcentaje de contratos de mínima cuantía son adjudicados a micronegocios locales en zonas de alta vulnerabilidad socioeconómica?
 3. **Brechas de Género:** ¿Cómo se correlaciona la jefatura de hogar femenina (Censo de Población) con la representación de mujeres como representantes legales en contratos estatales?
