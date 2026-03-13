@@ -1,0 +1,144 @@
+# Catalogo de Datos del Proyecto
+# ================================
+# Cada entrada incluye el identificador Socrata, la URL, campos clave
+# y la periodicidad de actualizacion.
+
+fuentes:
+
+  # -------------------------------
+  # SECOP II – Contratación Pública
+  # -------------------------------
+
+  - nombre: "SECOP II - Contratos Electrónicos (Activos)"
+    plataforma: "datos.gov.co"
+    socrata_id: "p8vk-huva"
+    url: "https://www.datos.gov.co/resource/p8vk-huva.csv"
+    formato: "csv"
+    campos_clave:
+      - id_contrato
+      - entidad
+      - proveedor
+      - nit_proveedor
+      - valor_contrato
+      - fecha_firma
+      - objeto_contrato
+      - codigo_unspsc
+      - municipio_ejecucion
+    periodicidad: "diaria"
+    ultimo_pull: null
+    notas: "Base maestra de contratos firmados en SECOP II."
+
+  - nombre: "SECOP II - Ejecución de Contratos"
+    plataforma: "datos.gov.co"
+    socrata_id: "mfmm-jqmq"
+    url: "https://www.datos.gov.co/resource/mfmm-jqmq.csv"
+    formato: "csv"
+    campos_clave:
+      - id_contrato
+      - valor_pagado
+      - estado_contrato
+      - fecha_pago
+      - acta
+      - entidad
+    periodicidad: "diaria"
+    ultimo_pull: null
+    notas: "Información sobre pagos y estado financiero de contratos."
+
+  # -------------------------------
+  # DANE – Microdatos y Censos
+  # -------------------------------
+
+  - nombre: "Archivo Nacional de Datos (ANDA)"
+    plataforma: "dane"
+    socrata_id: null
+    url: "https://microdatos.dane.gov.co/index.php/catalog/central"
+    formato: "csv"
+    campos_clave:
+      - encuesta
+      - anio
+      - departamento
+      - municipio
+      - variable
+    periodicidad: "variable"
+    ultimo_pull: null
+    notas: "Repositorio oficial de microdatos del DANE."
+
+  - nombre: "Censo Económico Nacional Urbano (CENU)"
+    plataforma: "dane"
+    socrata_id: null
+    url: "https://microdatos.dane.gov.co/index.php/catalog"
+    formato: "csv"
+    campos_clave:
+      - unidad_economica
+      - actividad_economica
+      - municipio
+      - numero_empleados
+      - ingresos
+    periodicidad: "censal"
+    ultimo_pull: null
+    notas: "Censo del tejido empresarial urbano y micronegocios."
+
+  - nombre: "Gran Encuesta Integrada de Hogares (GEIH)"
+    plataforma: "dane"
+    socrata_id: null
+    url: "https://microdatos.dane.gov.co/index.php/catalog"
+    formato: "csv"
+    campos_clave:
+      - hogar
+      - persona
+      - ingresos
+      - ocupacion
+      - nivel_educativo
+      - municipio
+    periodicidad: "mensual"
+    ultimo_pull: null
+    notas: "Encuesta principal del DANE para medir empleo e ingresos."
+
+  - nombre: "Censo Nacional de Población y Vivienda 2018"
+    plataforma: "dane"
+    socrata_id: null
+    url: "https://www.dane.gov.co/index.php/estadisticas-por-tema/demografia-y-poblacion/censo-nacional-de-poblacion-y-vivienda-2018"
+    formato: "csv"
+    campos_clave:
+      - departamento
+      - municipio
+      - poblacion_total
+      - hogares
+      - indice_pobreza_multidimensional
+      - deficit_habitacional
+    periodicidad: "censal"
+    ultimo_pull: null
+    notas: "Datos demográficos y socioeconómicos de la población."
+
+  - nombre: "Geoportal DANE - Capas Geográficas"
+    plataforma: "dane"
+    socrata_id: null
+    url: "https://geoportal.dane.gov.co/"
+    formato: "shapefile"
+    campos_clave:
+      - codigo_dane
+      - departamento
+      - municipio
+      - geometria
+    periodicidad: "variable"
+    ultimo_pull: null
+    notas: "Capas geográficas oficiales para análisis espacial."
+
+  # -------------------------------
+  # Indicadores Territoriales
+  # -------------------------------
+
+  - nombre: "TerriData - Indicadores Municipales"
+    plataforma: "dnp"
+    socrata_id: null
+    url: "https://terridata.dnp.gov.co/"
+    formato: "csv"
+    campos_clave:
+      - codigo_municipio
+      - indicador
+      - valor
+      - anio
+      - dimension
+    periodicidad: "anual"
+    ultimo_pull: null
+    notas: "Indicadores socioeconómicos municipales publicados por el DNP."
