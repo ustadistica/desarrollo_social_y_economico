@@ -1,2 +1,7 @@
 .env
-
+datos/
+artifacts/
+__pycache__/
+*.pyc
+*.duckdb
+*.parquet

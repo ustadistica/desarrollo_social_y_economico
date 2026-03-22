@@ -1,0 +1,231 @@
+# Catálogo de Fuentes de Datos del Proyecto
+# ==========================================
+# Este archivo define todas las fuentes de datos obligatorias
+# con sus metadatos, endpoints y parámetros de extracción.
+
+fuentes:
+  # =========================================================================
+  # DANE - Censo Nacional de Población y Vivienda (CNPV)
+  # =========================================================================
+  dane_cnpv:
+    nombre: "Censo Nacional de Población y Vivienda 2018"
+    entidad: "DANE"
+    descripcion: >
+      Microdatos del CNPV 2018 con indicadores de pobreza multidimensional,
+      déficit habitacional, NBI, educación y servicios públicos.
+    vigencia:
+      tipo: "censal"
+      periodo_base: "2018"
+      proyecciones: "2024-2025"
+      auto_update: false
+    extraccion:
+      metodo: "ANDA_API"
+      plataforma: "ANDA - Archivo Nacional de Datos Abiertos"
+      base_url: "https://anda.dane.gov.co/index.php/catalog"
+      dataset_id: "CNPV-2018-PERSONAS"
+      formato: "microdatos"
+      autenticacion:
+        requerida: true
+        tipo: "registro"
+      variables_clave:
+        - ipm_total
+        - ipm_educacion
+        - ipm_ninez
+        - ipm_trabajo
+        - ipm_salud
+        - deficit_habitacional
+        - nbi_total
+        - pobreza_monetaria
+        - divipola_municipio
+      frecuencia_actualizacion: "Una vez por vigencia"
+    unidad_geografica: "municipio"
+    llave_geografica: "divipola_municipio"
+    notas: |
+      Los microdatos del DANE están anonimizados por ley (secreto estadístico).
+      No es posible cruzar NIT directamente. Usar agregaciones por DIVIPOLA.
+
+  # =========================================================================
+  # DANE - Censo Económico Nacional Único (CENU)
+  # =========================================================================
+  dane_cenu:
+    nombre: "Censo Económico Nacional Único"
+    entidad: "DANE"
+    descripcion: >
+      Tejido productivo nacional, micronegocios, economía popular,
+      formalidad/informalidad por sector económico (CIIU).
+    vigencia:
+      tipo: "periodica"
+      periodo_base: "2024"
+      frecuencia: "trimestral"
+      auto_update: true
+    extraccion:
+      metodo: "ANDA_API"
+      plataforma: "ANDA / FTP DANE"
+      base_url: "https://anda.dane.gov.co/index.php/catalog"
+      dataset_id: "CENU-2024"
+      formato: "agregados_municipales"
+      autenticacion:
+        requerida: false
+      variables_clave:
+        - total_micronegocios
+        - micronegocios_formales
+        - micronegocios_informales
+        - economia_popular_unidades
+        - economia_popular_empleo
+        - codigo_ciiu
+        - divipola_municipio
+      frecuencia_actualizacion: "Trimestral"
+    unidad_geografica: "municipio"
+    llave_geografica: "divipola_municipio"
+    clasificacion_economica: "CIIU Rev. 4 A.C."
+    notas: |
+      Identifica unidades de economía popular según definición DANE.
+      Permite análisis de formalización por sector y territorio.
+
+  # =========================================================================
+  # SECOP II - Contratación Pública
+  # =========================================================================
+  secop_ii:
+    nombre: "SECOP II - Contratos Públicos"
+    entidad: "Colombia Compra Eficiente"
+    descripcion: >
+      Registro único de contratación pública. Incluye información de
+      contratos, procesos de selección, proveedores y ejecución presupuestal.
+    vigencia:
+      tipo: "continua"
+      corte: "mensual"
+      auto_update: true
+    extraccion:
+      metodo: "SODA_API"
+      plataforma: "datos.gov.co (Socrata)"
+      base_url: "https://www.datos.gov.co/resource/287p-52ht.json"
+      api_version: "SODA 2.0"
+      formato: "JSON"
+      autenticacion:
+        requerida: false
+        tipo: "app_token"
+        variable_env: "SODA_APP_TOKEN"
+        nota: "Recomendado para aumentar rate limits"
+      parametros_query:
+        order: "fecha_publicacion DESC"
+        batch_size: 50000
+        max_retries: 3
+      campos_clave:
+        - objectid
+        - id_contrato
+        - fecha_publicacion
+        - monto_contrato
+        - monto_ejecutado
+        - divipola_municipio
+        - codigo_unspsc
+        - nit_proveedor
+        - nombre_entidad
+        - modalidad_seleccion
+      frecuencia_actualizacion: "Mensual (último día del mes)"
+    unidad_geografica: "municipio"
+    llave_geografica: "divipola_municipio"
+    clasificacion_compras: "UNSPSC"
+    notas: |
+      El NIT del proveedor está disponible pero NO debe cruzarse directamente
+      con microdatos del DANE por secreto estadístico. Usar agregaciones
+      geográficas y sectoriales.
+
+  # =========================================================================
+  # TerriData - Indicadores Municipales
+  # =========================================================================
+  terridata:
+    nombre: "TerriData - Indicadores Municipales Agregados"
+    entidad: "DNP - Departamento Nacional de Planeación"
+    descripcion: >
+      Indicadores municipales agregados de pobreza, población, gasto público
+      e inversión. Fuente oficial del DNP para análisis territorial.
+    vigencia:
+      tipo: "periodica"
+      periodo_base: "2024"
+      frecuencia: "anual"
+      auto_update: true
+    extraccion:
+      metodo: "ARC GIS_API"
+      plataforma: "ArcGIS Hub"
+      base_url: "https://terridata-dnp.hub.arcgis.com/api/download/v1/items/"
+      formato: "CSV"
+      autenticacion:
+        requerida: false
+      item_ids:
+        pobreza: "ITEM_ID_POBREZA"
+        poblacion: "ITEM_ID_POBLACION"
+        gasto_publico: "ITEM_ID_GASTO"
+      campos_clave:
+        - divipola_municipio
+        - poblacion_total
+        - pobreza_multidimensional
+        - gasto_publico_per_capita
+        - inversion_per_capita
+      frecuencia_actualizacion: "Anual"
+    unidad_geografica: "municipio"
+    llave_geografica: "divipola_municipio"
+    notas: |
+      Complementa indicadores del DANE para municipios con cobertura parcial.
+      Útil para validación cruzada de indicadores.
+
+  # =========================================================================
+  # DANE Geoportal - Marco Geoestadístico Nacional
+  # =========================================================================
+  dane_geoportal:
+    nombre: "Marco Geoestadístico Nacional (MGN)"
+    entidad: "DANE"
+    descripcion: >
+      Cartografía oficial de límites municipales y departamentales.
+      Incluye shapefiles con códigos DIVIPOLA para análisis espacial.
+    vigencia:
+      tipo: "periodica"
+      periodo_base: "2024"
+      frecuencia: "semestral"
+      auto_update: false
+    extraccion:
+      metodo: "DESCARGA_DIRECTA"
+      plataforma: "DANE Geoportal"
+      base_url: "https://geoportal.dane.gov.co/descargas/"
+      formato: "Shapefile / GeoJSON"
+      autenticacion:
+        requerida: false
+      archivos:
+        - MGN_2024_MUNICIPIOS.shp
+        - MGN_2024_DEPARTAMENTOS.shp
+      campos_clave:
+        - DIVIPOLA
+        - NOM_MUN
+        - NOM_DEP
+        - AREA_KM2
+        - SHAPE@JSON
+      frecuencia_actualizacion: "Verificar nueva versión MGN"
+    unidad_geografica: "municipio"
+    llave_geografica: "DIVIPOLA"
+    notas: |
+      Base para análisis espacial (Moran's I, clustering).
+      Proporciona geometría para visualización en mapas.
+
+# =========================================================================
+# Mapeo entre Clasificaciones
+# =========================================================================
+mapeo_clasificaciones:
+  ciiu_a_unspsc:
+    descripcion: "Mapeo entre CIIU (DANE) y UNSPSC (SECOP II)"
+    archivo: "utils/ciiu_unspsc_mapping.py"
+    notas: |
+      Permite cruzar vocación productiva (CIIU) con contratación (UNSPSC).
+      Mapeo muchos-a-muchos basado en descripción semántica.
+
+# =========================================================================
+# Factores de Expansión DANE
+# =========================================================================
+factores_expansion:
+  descripcion: "Factores de expansión para proyecciones de población"
+  fuente: "DANE - Proyecciones de Población 2018-2035"
+  archivo: "utils/expansion_factors.py"
+  periodos:
+    - "2024"
+    - "2025"
+  notas: |
+    Necesarios para expandir muestras censales a nivel poblacional.
+    Actualizar con cada nueva proyección del DANE.
