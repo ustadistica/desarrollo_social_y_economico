@@ -17,10 +17,9 @@ import chardet
 
 logger = logging.getLogger(__name__)
 
-# Ruta al archivo CSV local
-EMICRON_CSV_PATH = Path(
-    r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\Módulo de características del micronegocio.csv"
-)
+# Ruta al archivo CSV local leída desde el entorno unificado (.env)
+from config.settings import settings
+EMICRON_CSV_PATH = settings.EMICRON_CSV_PATH
 
 # Encodings comunes a probar (en orden de prioridad)
 COMMON_ENCODINGS = ["utf-8", "latin-1", "cp1252", "iso-8859-1", "utf-8-sig"]
