@@ -23,26 +23,25 @@ from extract import (
     extract_terridata,
     extract_dane_geoportal,
 )
-from transform import (
+from gold.schema.create_dimensions import (
     create_dim_municipio,
     create_dim_tiempo,
     create_dim_sector_ciiu,
     create_dim_sector_unspsc,
+)
+from gold.schema.create_facts import (
     create_fact_vulnerabilidad,
     create_fact_tejido_productivo,
     create_fact_contratacion,
 )
-from load import (
-    create_datamart_social,
-    create_datamart_economico,
-    create_cubo_completo,
-)
-from validate import (
-    validate_bronze_layer,
-    validate_plata_layer,
-    validate_oro_layer,
-    generate_quality_report,
-)
+from gold.marts.create_datamart_social import create_datamart_social
+from gold.marts.create_datamart_economico import create_datamart_economico
+from gold.marts.create_cubos_analiticos import create_cubo_completo
+from bronze.validators.bronze_validator import validate_bronze_folder as validate_bronze_layer
+from silver.validators.silver_validator import validate_plata_folder as validate_plata_layer
+# from validate.validate_oro import validate_oro_layer
+# from validate.generate_quality_report import generate_quality_report
+
 from utils.logger import setup_logging, get_logger, get_log_file_path
 
 logger = get_logger(__name__)
