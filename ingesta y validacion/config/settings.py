@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 import yaml
+from dotenv import load_dotenv
+
+# Cargar variables del .env
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(env_path)
 
 
 class Settings:
@@ -53,9 +58,11 @@ class Settings:
         # Por defecto, si el compañero de equipo no tiene el .env listado, buscamos en una carpeta dummy local.
         secop_default = r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\SECOP_II_-_Contratos_Electrónicos_20260322.csv"
         cnpv_default = r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\CENSO 2018 dep"
+        emicron_default = r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\Módulo de características del micronegocio.csv"
         
         self.SECOP_CSV_PATH = Path(os.getenv("SECOP_CSV_PATH", secop_default))
         self.CNPV_CSV_DIR = Path(os.getenv("CNPV_CSV_DIR", cnpv_default))
+        self.EMICRON_CSV_PATH = Path(os.getenv("EMICRON_CSV_PATH", emicron_default))
         
         # Parámetros de calidad de datos
         self.NULL_THRESHOLD_WARNING = float(os.getenv("NULL_THRESHOLD_WARNING", "0.5"))

@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 def clean_secop_data(bronze_path: Path, silver_path: Path, settings: Any) -> Dict[str, Any]:
     logger.info(f"Iniciando limpieza de SECOP II desde {bronze_path}")
     
-    secop_parquet = bronze_path / "secop_raw.parquet"
-    if not secop_parquet.exists():
-        logger.error(f"Falta el dataset de SECOP: {secop_parquet}")
+    parquets = list(bronze_path.glob("*.parquet"))
+    if not parquets:
+        logger.error(f"Falta el dataset de SECOP en: {bronze_path}")
         return {"status": "failed", "error": "Parquet de SECOP no encontrado"}
+    secop_parquet = parquets[0]
         
     output_file = silver_path / "secop_clean.parquet"
     

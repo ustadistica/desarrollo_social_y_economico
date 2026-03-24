@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 def clean_emicron_data(bronze_path: Path, silver_path: Path, settings: Any) -> Dict[str, Any]:
     logger.info(f"Iniciando limpieza de EMICRON desde {bronze_path}")
     
-    emicron_parquet = bronze_path / "emicron_raw.parquet"
-    if not emicron_parquet.exists():
-        logger.error(f"Falta el dataset de EMICRON: {emicron_parquet}")
+    parquets = list(bronze_path.glob("*.parquet"))
+    if not parquets:
+        logger.error(f"Falta el dataset de EMICRON en: {bronze_path}")
         return {"status": "failed", "error": "Parquet de EMICRON no encontrado"}
+    emicron_parquet = parquets[0]
         
     output_file = silver_path / "emicron_clean.parquet"
     

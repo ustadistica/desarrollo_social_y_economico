@@ -25,7 +25,12 @@ def run_script(script_path: str, args: list, logger):
     cmd = [sys.executable, script_path] + args
     logger.info(f"Ejecutando: {' '.join(cmd)}")
     
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Inyectar PYTHONPATH para que los imports de módulos padre funcionen
+    env = os.environ.copy()
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    env["PYTHONPATH"] = f"{base_dir}{os.pathsep}{env.get('PYTHONPATH', '')}"
+    
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     
     if result.returncode != 0:
         logger.error(f"Error en {script_path}:\n{result.stderr}")
