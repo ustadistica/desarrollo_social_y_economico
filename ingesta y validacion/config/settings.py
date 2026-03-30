@@ -40,8 +40,8 @@ class Settings:
         self.ARTIFACTS_PATH = self.PROJECT_ROOT / "artifacts"
         self.QUALITY_REPORTS_PATH = self.ARTIFACTS_PATH / "data_quality_reports"
         
-        # Base de datos DuckDB
-        self.DUCKDB_PATH = self.PROJECT_ROOT / "modelo_estrella_duckdb" / "observatorio_desarrollo.duckdb"
+        # Directorio de Modelo Estrella Parquet (PySpark)
+        self.MODELO_ESTRELLA_PATH = self.PROJECT_ROOT / "modelo_estrella_pyspark"
         
         # Configuración de APIs - datos.gov.co
         # API Token para SODA API (datos.gov.co)
