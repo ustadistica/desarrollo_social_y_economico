@@ -169,15 +169,16 @@ def create_matriz_brechas(
     # Guardar
     if output_path is None:
         from config.settings import settings
-        output_path = settings.get_oro_path('datamart_social', 'matriz_brechas_municipal')
+        output_path = settings.MODELO_ESTRELLA_PATH / 'datamart_social' / 'matriz_brechas_municipal'
     
     output_path = Path(output_path)
-    if not output_path.suffix:
-        output_path = output_path / 'matriz_brechas_municipal.parquet'
+    if output_path.suffix == '.parquet':
+        output_path = output_path.with_suffix('')
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    matriz.to_parquet(output_path, index=False, compression='snappy')
+    from utils.spark_session import write_parquet
+    write_parquet(matriz, output_path)
     
     logger.info(f"Matriz de Brechas creada: {len(matriz)} municipios")
     
@@ -283,15 +284,16 @@ def create_inversion_vs_vulnerabilidad(
     # Guardar
     if output_path is None:
         from config.settings import settings
-        output_path = settings.get_oro_path('datamart_social', 'inversion_vs_vulnerabilidad')
+        output_path = settings.MODELO_ESTRELLA_PATH / 'datamart_social' / 'inversion_vs_vulnerabilidad'
     
     output_path = Path(output_path)
-    if not output_path.suffix:
-        output_path = output_path / 'inversion_vs_vulnerabilidad.parquet'
+    if output_path.suffix == '.parquet':
+        output_path = output_path.with_suffix('')
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    agregado.to_parquet(output_path, index=False, compression='snappy')
+    from utils.spark_session import write_parquet
+    write_parquet(agregado, output_path)
     
     logger.info(f"Inversión vs Vulnerabilidad creada: {len(agregado)} registros")
     
@@ -343,15 +345,16 @@ def create_autocorrelacion_espacial(
     # Guardar
     if output_path is None:
         from config.settings import settings
-        output_path = settings.get_oro_path('datamart_social', 'autocorrelacion_espacial')
+        output_path = settings.MODELO_ESTRELLA_PATH / 'datamart_social' / 'autocorrelacion_espacial'
     
     output_path = Path(output_path)
-    if not output_path.suffix:
-        output_path = output_path / 'autocorrelacion_espacial.parquet'
+    if output_path.suffix == '.parquet':
+        output_path = output_path.with_suffix('')
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    resultado_df.to_parquet(output_path, index=False, compression='snappy')
+    from utils.spark_session import write_parquet
+    write_parquet(resultado_df, output_path)
     
     logger.info(f"Autocorrelación Espacial calculada")
     

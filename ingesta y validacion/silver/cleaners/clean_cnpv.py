@@ -3,15 +3,14 @@ Limpieza y Agregación de CNPV 2018 (Capa Silver).
 
 Implementa la agregación a nivel de municipio (población total)
 a partir de los microdatos crudos de Personas extraídos en Parquet.
-Utiliza DuckDB para realizar agregaciones out-of-core de manera
-altamente eficiente sobre Parquet de varios GBs.
+Utiliza el motor dual PySpark/PyArrow para realizar agregaciones
+out-of-core de manera altamente eficiente sobre Parquet de varios GBs.
 """
 
 import logging
 from pathlib import Path
 from typing import Dict, Any
 import datetime
-import duckdb
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -35,19 +34,22 @@ def clean_cnpv_data(bronze_path: Path, silver_path: Path, settings: Any) -> Dict
     output_file = silver_path / "cnpv_poblacion_agregada.parquet"
     
     try:
-        # 2. Usar DuckDB para ejecutar un SQL analítico directamente sobre el Parquet (OOM-safe)
-        logger.info(f"Ejecutando Agregación Analítica con DuckDB sobre {personas_parquet.name}...")
+        # 2. Motor dual: usa PySpark si funciona, PyArrow si no
+        from utils.spark_session import query_parquet, get_engine_name
         
-        query = f"""
+        engine = get_engine_name()
+        logger.info(f"Ejecutando Agregación Analítica con [{engine}] sobre {personas_parquet.name}...")
+        
+        query = """
             SELECT 
-                U_DPTO || U_MPIO AS divipola_municipio,
+                concat(U_DPTO, U_MPIO) AS divipola_municipio,
                 COUNT(*) AS poblacion_total
-            FROM read_parquet('{personas_parquet}')
+            FROM datos
             GROUP BY U_DPTO, U_MPIO
         """
         
-        # Ejecutar query y traer a memoria en Pandas (resultado es pequeño: ~1122 filas)
-        df_agg = duckdb.query(query).df()
+        # Ejecutar query (resultado es pequeño: ~1122 filas)
+        df_agg = query_parquet(personas_parquet, query)
         
         # 3. Limpieza de datos adicionales
         df_agg = df_agg.dropna(subset=['divipola_municipio'])
@@ -74,5 +76,5 @@ def clean_cnpv_data(bronze_path: Path, silver_path: Path, settings: Any) -> Dict
         }
         
     except Exception as e:
-        logger.error(f"Fallo durante procesamiento DuckDB de CNPV: {str(e)}", exc_info=True)
+        logger.error(f"Fallo durante procesamiento de CNPV: {str(e)}", exc_info=True)
         return {"status": "failed", "error": str(e)}
