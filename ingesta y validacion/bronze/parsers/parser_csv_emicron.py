@@ -60,7 +60,7 @@ def parse_emicron_csv(
     Parsear archivo CSV de EMICRON 2024 y convertirlo en DataFrame.
 
     Parameters:
-    - csv_path: Ruta al archivo CSV (default: EMICRON_CSV_PATH)
+    - csv_path: Ruta al directorio EMICRON 2024 o al archivo CSV (default: EMICRON_CSV_PATH)
     - output_path: Ruta de salida para archivo Parquet (default: capa Bronze)
     - detect_encoding: Si True, detecta automáticamente el encoding
     - detect_separator: Si True, detecta automáticamente el separador
@@ -80,9 +80,9 @@ def parse_emicron_csv(
     if csv_path is None:
         csv_path = EMICRON_CSV_PATH
 
-    # Verificar existencia del archivo
+    # Verificar existencia del archivo o directorio
     if not csv_path.exists():
-        error_msg = f"Archivo CSV no encontrado: {csv_path}"
+        error_msg = f"Ruta no encontrada: {csv_path}"
         logger.error(error_msg)
         return {
             "status": "error",
@@ -90,13 +90,42 @@ def parse_emicron_csv(
             "error": error_msg,
         }
 
+    # Si es directorio, buscar todos los CSV e iterar
+    if csv_path.is_dir():
+        logger.info(f"Ruta es un directorio, buscando CSVs en: {csv_path}")
+        csv_files = list(csv_path.rglob("*.csv"))
+        if not csv_files:
+            return {"status": "error", "error": "No se encontraron archivos CSV en el directorio"}
+            
+        resultados = []
+        for file in csv_files:
+            logger.info(f"Procesando sub-archivo: {file.name}")
+            resultado = _procesar_un_archivo(
+                file, output_path, detect_encoding, detect_separator, validate_schema, chunk_size
+            )
+            resultados.append(resultado)
+        return {"status": "success", "archivos_procesados": len(resultados), "detalles": resultados}
+    else:
+        # Procesar archivo único
+        return _procesar_un_archivo(
+            csv_path, output_path, detect_encoding, detect_separator, validate_schema, chunk_size
+        )
+
+def _procesar_un_archivo(
+    csv_path: Path,
+    output_path: Optional[Path],
+    detect_encoding: bool,
+    detect_separator: bool,
+    validate_schema: bool,
+    chunk_size: Optional[int],
+) -> Dict[str, Any]:
     logger.info(f"Leyendo archivo CSV: {csv_path}")
 
     try:
         # Detectar encoding si se solicita
         encoding = None
         if detect_encoding:
-            encoding = _detect_encoding(csv_path)
+            encoding = _detect_encoding(csv_path, sample_size=50000)
             logger.info(f"Encoding detectado: {encoding}")
         else:
             encoding = "utf-8"
@@ -123,7 +152,7 @@ def parse_emicron_csv(
         # Agregar metadatos de ingesta
         df = _add_ingestion_metadata(df)
 
-        # Validar schema si se solicita
+        # Validar schema si se solicita (ignorado para raw directory scan sin estricto fail)
         if validate_schema:
             validation_result = _validate_schema(df, EMICRON_SCHEMA)
             if not validation_result["valid"]:
@@ -136,9 +165,13 @@ def parse_emicron_csv(
 
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Nombre del archivo con fecha de ingesta
+        # Usar nombre del archivo de origen limpio para no sobrescribir, más fecha de ingesta
+        safe_name = csv_path.stem.replace(" ", "_").replace(",", "").replace("-", "_").lower()
+        import re
+        safe_name = re.sub(r'[^a-z0-9_]', '', safe_name)
+        
         ingestion_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-        archivo_salida = output_path / f"emicron_2024_{ingestion_date}_raw.parquet"
+        archivo_salida = output_path / f"emicron_{safe_name}_{ingestion_date}_raw.parquet"
 
         # Guardar en Parquet
         df.to_parquet(
@@ -155,28 +188,20 @@ def parse_emicron_csv(
             "registros": len(df),
             "columnas": list(df.columns),
             "fecha_extraccion": datetime.now().isoformat(),
-            "fuente": "emicron_2024",
+            "fuente": f"emicron_2024_{safe_name}",
             "tipo": "CSV_LOCAL",
             "encoding_detectado": encoding,
             "separador_detectado": separator,
         }
 
     except UnicodeDecodeError as e:
-        error_msg = f"Error de decodificación: {str(e)}"
+        error_msg = f"Error de decodificación en {csv_path.name}: {str(e)}"
         logger.error(error_msg)
-        return {
-            "status": "error",
-            "archivo": None,
-            "error": error_msg,
-        }
+        return {"status": "error", "archivo": None, "error": error_msg}
     except Exception as e:
-        error_msg = f"Error en parser de EMICRON CSV: {str(e)}"
+        error_msg = f"Error en parser de EMICRON CSV ({csv_path.name}): {str(e)}"
         logger.error(error_msg)
-        return {
-            "status": "error",
-            "archivo": None,
-            "error": error_msg,
-        }
+        return {"status": "error", "archivo": None, "error": error_msg}
 
 
 def _detect_encoding(file_path: Path, sample_size: int = 100000) -> str:
