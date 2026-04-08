@@ -55,10 +55,11 @@ class Settings:
         self.SECOP_BASE_URL = "https://www.datos.gov.co/resource/287p-52ht.json"
         
         # Leemos las rutas de los CSV locales desde variables de entorno (o .env)
-        # Por defecto, si el compañero de equipo no tiene el .env listado, buscamos en una carpeta dummy local.
-        secop_default = r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\SECOP_II_-_Contratos_Electrónicos_20260322.csv"
-        cnpv_default = r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\CENSO 2018 dep"
-        emicron_default = r"C:\Users\user\Documents\001 Uni\Octavo\CONSULTORIA\Datos\Módulo de características del micronegocio.csv"
+        # Por defecto, si el compañero de equipo no tiene el .env listado, buscamos en una carpeta Datos relativa al proyecto.
+        datos_folder = self.PROJECT_ROOT.parent / "Datos"
+        secop_default = datos_folder / "SECOP_II_-_Contratos_Electrónicos_20260322.csv"
+        cnpv_default = datos_folder / "CENSO 2018 dep"
+        emicron_default = datos_folder / "EMICRON 2024"
         
         self.SECOP_CSV_PATH = Path(os.getenv("SECOP_CSV_PATH", secop_default))
         self.CNPV_CSV_DIR = Path(os.getenv("CNPV_CSV_DIR", cnpv_default))
