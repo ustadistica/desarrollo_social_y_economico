@@ -37,6 +37,7 @@ ingesta y validacion/
 | 2 | **SECOP II** (datos.gov.co) | API JSON | `parser_api_secop.py` | ✅ Implementado |
 | 3 | **EMICRON 2024** (DANE) | CSV Local | `parser_csv_emicron.py` | ✅ Implementado |
 | 4 | **IPM/NBI** (DANE) | Genérico | `parser_generic.py` | ✅ Implementado |
+| 5 | **Proyecciones Censales** (DANE) | CSV Local | `parser_csv_proyecciones.py` | ✅ Implementado |
 
 ---
 

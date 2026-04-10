@@ -10,10 +10,12 @@ Módulos disponibles:
 from .parser_csv_cnpv import parse_cnpv_csv
 from .parser_csv_secop import parse_secop_csv
 from .parser_csv_emicron import parse_emicron_csv, inspect_csv_structure
+from .parser_csv_proyecciones import parse_proyecciones_csv
 
 __all__ = [
     "parse_cnpv_csv",
     "parse_secop_csv",
     "parse_emicron_csv",
     "inspect_csv_structure",
+    "parse_proyecciones_csv",
 ]
