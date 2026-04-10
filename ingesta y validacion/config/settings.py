@@ -60,10 +60,12 @@ class Settings:
         secop_default = datos_folder / "SECOP_II_-_Contratos_Electrónicos_20260322.csv"
         cnpv_default = datos_folder / "CENSO 2018 dep"
         emicron_default = datos_folder / "EMICRON 2024"
+        proyecciones_default = datos_folder / "PPED-AreaDep-2018-2050_VP.csv"
         
         self.SECOP_CSV_PATH = Path(os.getenv("SECOP_CSV_PATH", secop_default))
         self.CNPV_CSV_DIR = Path(os.getenv("CNPV_CSV_DIR", cnpv_default))
         self.EMICRON_CSV_PATH = Path(os.getenv("EMICRON_CSV_PATH", emicron_default))
+        self.PROYECCIONES_CENSO_PATH = Path(os.getenv("PROYECCIONES_CENSO_PATH", proyecciones_default))
         
         # Parámetros de calidad de datos
         self.NULL_THRESHOLD_WARNING = float(os.getenv("NULL_THRESHOLD_WARNING", "0.5"))

@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 from bronze.parsers.parser_csv_cnpv import parse_cnpv_csv
 from bronze.parsers.parser_csv_secop import parse_secop_csv
 from bronze.parsers.parser_csv_emicron import parse_emicron_csv
+from bronze.parsers.parser_csv_proyecciones import parse_proyecciones_csv
 
 # Importar validadores
 from bronze.validators.bronze_validator import (
@@ -67,6 +68,13 @@ SOURCES_CONFIG = {
         "description": "M\u00f3dulo de caracter\u00edsticas del micronegocio (DANE)",
         "type": "CSV_LOCAL",
         "parser": parse_emicron_csv,
+        "enabled": True,
+    },
+    "proyecciones": {
+        "name": "Proyecciones Censales DANE",
+        "description": "Proyecciones de poblaci\u00f3n 2018-2050 (Área y Depto)",
+        "type": "CSV_LOCAL",
+        "parser": parse_proyecciones_csv,
         "enabled": True,
     },
 }
@@ -252,6 +260,10 @@ class IngestionOrchestrator:
                 force_ingestion=force,
             )
         elif source_name == "emicron":
+            return parser_func(
+                output_path=output_path,
+            )
+        elif source_name == "proyecciones":
             return parser_func(
                 output_path=output_path,
             )
