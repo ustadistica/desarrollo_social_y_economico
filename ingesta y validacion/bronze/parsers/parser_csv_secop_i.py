@@ -1,11 +1,11 @@
 """
-Extractor para SECOP II - Contratos Electrónicos (CSV Local).
+Parser para SECOP I - Procesos de Compra Pública (CSV Local).
 
-Este módulo implementa la ingesta de datos desde un archivo CSV local descargado
-de datos.gov.co usando lectura por chunks con PyArrow para manejar archivos
-masivos (~9.6 GB) sin saturar la RAM.
+Este módulo implementa la ingesta de datos históricos de SECOP I
+desde un archivo CSV local descargado de datos.gov.co hacia la capa Bronze
+usando lectura por chunks con PyArrow para manejar archivos de ~10 GB.
 
-Fuente original: https://www.datos.gov.co/Gastos-Públicos/SECOP-II-Contratos-Electrónicos/jbjy-vk9h
+Fuente original: https://www.datos.gov.co/Gastos-Gubernamentales/SECOP-I-Procesos-de-Compra-P-blica/f789-7hwg
 """
 
 import logging
@@ -18,7 +18,7 @@ import pyarrow.parquet as pq
 import sys
 import os
 
-# Añadir el directorio raíz al path para poder importar config
+# Asegurar que se puede importar config (agregamos ROOT al path)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 if project_root not in sys.path:
@@ -29,59 +29,59 @@ from config.settings import Settings
 logger = logging.getLogger(__name__)
 
 
-def parse_secop_csv(
+def parse_secop_i_csv(
     input_path: Optional[Path] = None,
     output_path: Optional[Path] = None,
     force_ingestion: bool = False,
     chunk_size: int = 250000,
 ) -> Dict[str, Any]:
     """
-    Procesar archivo CSV de SECOP II (Contratos Electrónicos) hacia la capa Bronze.
+    Procesar archivo CSV de SECOP I (Procesos de Compra Pública) hacia la capa Bronze.
 
-    Usa lectura por chunks con PyArrow para manejar archivos masivos (~9.6 GB)
+    Usa lectura por chunks con PyArrow para manejar archivos masivos (~10 GB)
     sin saturar la RAM. Todos los campos se leen como string (capa Bronze = datos crudos).
 
     Parameters:
-    - input_path: Ruta al archivo CSV fuente (default: settings.SECOP_CSV_PATH)
-    - output_path: Ruta de salida para archivo Parquet (default: capa Bronze)
+    - input_path: Ruta al archivo CSV fuente (default: settings.SECOP_I_CSV_PATH)
+    - output_path: Ruta de salida para archivo Parquet (default: capa Bronze / secop_i)
     - force_ingestion: Forzar proceso incluso si existe archivo Bronze
     - chunk_size: Número de filas por lote de lectura (default: 250,000)
 
     Returns:
     - Dict con metadata de extracción y ruta del archivo
     """
-    logger.info("Iniciando procesamiento de SECOP II (CSV Local)")
+    logger.info("Iniciando procesamiento de SECOP I (CSV Local)")
 
     settings = Settings()
 
     # Determinar rutas
     if input_path is None:
-        input_path = settings.SECOP_CSV_PATH
+        input_path = settings.SECOP_I_CSV_PATH
 
     if not input_path.exists():
-        error_msg = f"Archivo fuente SECOP II no encontrado: {input_path}"
+        error_msg = f"Archivo fuente SECOP I no encontrado: {input_path}"
         logger.error(error_msg)
         logger.info(
-            "Asegúrate de configurar SECOP_CSV_PATH en tu archivo .env "
+            "Asegúrate de configurar SECOP_I_CSV_PATH en tu archivo .env "
             "o de colocar el CSV en la carpeta ../Datos/"
         )
         return {"status": "error", "error": error_msg}
 
     if output_path is None:
-        output_path = settings.BRONZE_PATH / "secop_ii"
+        output_path = settings.BRONZE_PATH / "secop_i"
 
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Verificar si ya existen datos
     if any(output_path.glob("*.parquet")) and not force_ingestion:
-        logger.info(f"Ya existen datos en Bronze para SECOP II en {output_path}")
+        logger.info(f"Ya existen datos en Bronze para SECOP I en {output_path}")
         return {
             "status": "skipped",
             "archivo": str(next(output_path.glob("*.parquet"))),
             "mensaje": "Datos ya presentes. Use force_ingestion=True para re-procesar.",
         }
 
-    parquet_file = output_path / "secop_ii_raw.parquet"
+    parquet_file = output_path / "secop_i_raw.parquet"
     total_records = 0
     writer = None
 
@@ -107,8 +107,8 @@ def parse_secop_csv(
 
             # Agregar metadatos de ingesta a nivel Bronze
             chunk["_ingestion_timestamp"] = datetime.now().isoformat()
-            chunk["_source"] = "secop_ii_csv"
-            chunk["_source_version"] = "SECOP_II_LOCAL"
+            chunk["_source"] = "secop_i_csv"
+            chunk["_source_version"] = "SECOP_I_LOCAL"
             chunk["_extraction_method"] = "CSV_LOCAL_PARSER"
 
             # Checksum para integridad
@@ -140,7 +140,7 @@ def parse_secop_csv(
             return {"status": "warning", "error": "Archivo CSV vacío"}
 
     except Exception as e:
-        error_msg = f"Error procesando SECOP II CSV: {str(e)}"
+        error_msg = f"Error procesando SECOP I CSV: {str(e)}"
         logger.error(error_msg)
         if writer:
             writer.close()
@@ -150,11 +150,11 @@ def parse_secop_csv(
         "status": "success",
         "archivo": str(parquet_file),
         "registros": total_records,
-        "fuente": "secop_ii",
+        "fuente": "secop_i",
         "tipo": "CSV_LOCAL",
         "metadata": {
             "timestamp": datetime.now().isoformat(),
-            "source": "secop_ii",
+            "source": "secop_i",
             "metodo": "CSV_LOCAL_PARSER",
         },
     }
@@ -162,5 +162,5 @@ def parse_secop_csv(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    resultado = parse_secop_csv(force_ingestion=True)
+    resultado = parse_secop_i_csv(force_ingestion=True)
     print(resultado)

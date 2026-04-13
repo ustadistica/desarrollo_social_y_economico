@@ -83,6 +83,48 @@ fuentes:
       Permite análisis de formalización por sector y territorio.
 
   # =========================================================================
+  # SECOP I - Procesos de Compra Pública
+  # =========================================================================
+  secop_i:
+    nombre: "SECOP I - Procesos de Compra Pública"
+    entidad: "Colombia Compra Eficiente"
+    descripcion: >
+      Registro histórico de procesos de contratación pública en SECOP I.
+      Incluye información de contratos, modalidades de selección, contratistas,
+      cuantías y ejecución presupuestal desde 2018 hasta 2024.
+    vigencia:
+      tipo: "historica"
+      periodo: "2018-2024"
+      auto_update: false
+    extraccion:
+      metodo: "CSV_LOCAL"
+      plataforma: "datos.gov.co (Descarga masiva)"
+      base_url: "https://www.datos.gov.co/Gastos-Gubernamentales/SECOP-I-Procesos-de-Compra-P-blica/f789-7hwg"
+      formato: "CSV"
+      autenticacion:
+        requerida: false
+      campos_clave:
+        - UID
+        - Anno Cargue SECOP
+        - Anno Firma Contrato
+        - Nombre Entidad
+        - NIT de la Entidad
+        - Modalidad de Contratacion
+        - Cuantia Contrato
+        - Municipio de Obtencion
+        - Departamento Entidad
+        - Tipo De Contrato
+        - Nombre Grupo
+        - Nombre Familia
+      frecuencia_actualizacion: "Datos históricos (snapshot)"
+    unidad_geografica: "municipio"
+    llave_geografica: "Municipio de Obtencion"
+    notas: |
+      Datos históricos de SECOP I. El campo 'Municipio de Obtencion' permite
+      la georreferenciación pero NO contiene código DIVIPOLA directamente;
+      requiere mapeo por nombre de municipio en capa Silver.
+
+  # =========================================================================
   # SECOP II - Contratación Pública
   # =========================================================================
   secop_ii:
