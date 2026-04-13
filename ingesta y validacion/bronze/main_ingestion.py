@@ -5,15 +5,16 @@ Este módulo coordina la ingesta de todas las fuentes de datos hacia la capa Bro
 ejecutando los parsers específicos para cada fuente y validando los resultados.
 
 Fuentes soportadas:
-1. CNPV 2018 (XML Local - DANE)
-2. SECOP II (API JSON - datos.gov.co)
-3. EMICRON 2024 (CSV Local - DANE)
-4. IPM/NBI (Genérico - Excel/CSV/JSON)
+1. CNPV 2018 (CSV Local - DANE)
+2. SECOP I (CSV Local - Procesos de Compra Pública)
+3. SECOP II (CSV Local - Contratos Electrónicos)
+4. EMICRON 2024 (CSV Local - DANE)
+5. Proyecciones Censales (CSV Local - DANE)
 
 Uso:
-    python main_ingestion.py --sources cnpv secop emicron
+    python main_ingestion.py --sources cnpv secop_i secop_ii emicron
     python main_ingestion.py --all --validate
-    python main_ingestion.py --source cnpv --force
+    python main_ingestion.py --source secop_i --force
 """
 
 import logging
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 # Importar parsers
 from bronze.parsers.parser_csv_cnpv import parse_cnpv_csv
 from bronze.parsers.parser_csv_secop import parse_secop_csv
+from bronze.parsers.parser_csv_secop_i import parse_secop_i_csv
 from bronze.parsers.parser_csv_emicron import parse_emicron_csv
 from bronze.parsers.parser_csv_proyecciones import parse_proyecciones_csv
 
@@ -56,23 +58,30 @@ SOURCES_CONFIG = {
         "parser": parse_cnpv_csv,
         "enabled": True,
     },
-    "secop": {
-        "name": "SECOP II",
-        "description": "Contrataci\u00f3n P\u00fablica (CSV Local)",
+    "secop_i": {
+        "name": "SECOP I (Procesos de Compra Pública)",
+        "description": "Procesos de contratación pública históricos 2018-2024 (CSV Local)",
+        "type": "CSV_LOCAL",
+        "parser": parse_secop_i_csv,
+        "enabled": True,
+    },
+    "secop_ii": {
+        "name": "SECOP II (Contratos Electrónicos)",
+        "description": "Contratos electrónicos de compra pública 2018-2024 (CSV Local)",
         "type": "CSV_LOCAL",
         "parser": parse_secop_csv,
         "enabled": True,
     },
     "emicron": {
-        "name": "EMICRON 2024",
-        "description": "M\u00f3dulo de caracter\u00edsticas del micronegocio (DANE)",
+        "name": "EMICRON 2019-2024 (Micronegocios)",
+        "description": "Encuesta de Micronegocios DANE - 6 años, todos los módulos (CSV Local)",
         "type": "CSV_LOCAL",
         "parser": parse_emicron_csv,
         "enabled": True,
     },
     "proyecciones": {
         "name": "Proyecciones Censales DANE",
-        "description": "Proyecciones de poblaci\u00f3n 2018-2050 (Área y Depto)",
+        "description": "Proyecciones de población 2018-2050 (Área y Depto)",
         "type": "CSV_LOCAL",
         "parser": parse_proyecciones_csv,
         "enabled": True,
@@ -254,7 +263,12 @@ class IngestionOrchestrator:
             return parser_func(
                 output_path=output_path,
             )
-        elif source_name == "secop":
+        elif source_name == "secop_i":
+            return parser_func(
+                output_path=output_path,
+                force_ingestion=force,
+            )
+        elif source_name == "secop_ii":
             return parser_func(
                 output_path=output_path,
                 force_ingestion=force,

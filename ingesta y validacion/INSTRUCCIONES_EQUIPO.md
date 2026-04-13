@@ -40,12 +40,32 @@ Dado que estamos procesando microdatos reales masivos (como los 6GB del Censo), 
 1. **Censo Nacional de Población y Vivienda (CNPV 2018)**
    - Descarga la base completa (busca el ZIP con las 33 carpetas departamentales CSV).
    - Guárdalas en una carpeta local de uso analítico. 
-   - *(Ejemplo: `C:\Proyectos\Datos\CENSO 2018 dep\`)*.
-   
-2. **SECOP II (Contratos Electrónicos) / EMICRON**
-   - Extrae los consolidados CSV directos desde el portal de datos abiertos de Colombia.
-   - Guárdalos en tu carpeta analítica.
-   - *(Ejemplo: `C:\Proyectos\Datos\SECOP_II.csv`)*.
+   - *(Ejemplo: `C:\Proyectos\Datos\CENSO 2018 dep\`)*
+
+2. **SECOP I (Procesos de Compra Pública) — ~10.5 GB**
+   - Descarga el consolidado CSV desde [datos.gov.co - SECOP I](https://www.datos.gov.co/Gastos-Gubernamentales/SECOP-I-Procesos-de-Compra-P-blica/f789-7hwg).
+   - El archivo se llama algo como `SECOP_I_-_Procesos_de_Compra_Pública_YYYYMMDD.csv`.
+   - Guárdalo en tu carpeta de datos.
+   - *(Ejemplo: `C:\Proyectos\Datos\SECOP_I_-_Procesos_de_Compra_Publica_20260412.csv`)*
+
+3. **SECOP II (Contratos Electrónicos) — ~9.6 GB**
+   - Descarga el consolidado CSV desde [datos.gov.co - SECOP II](https://www.datos.gov.co/Gastos-Públicos/SECOP-II-Contratos-Electrónicos/jbjy-vk9h).
+   - El archivo se llama algo como `SECOP_II_-_Contratos_Electrónicos_YYYYMMDD.csv`.
+   - Guárdalo en tu carpeta de datos.
+   - *(Ejemplo: `C:\Proyectos\Datos\SECOP_II_-_Contratos_Electronicos_20260412.csv`)*
+
+4. **EMICRON 2019-2024 (Micronegocios) — 6 carpetas**
+   - Descarga los microdatos de cada año desde el portal del DANE (ANDA).
+   - Cada año trae ~11-14 subcarpetas de módulos (TIC, identificación, ventas, etc.)
+   - Descomprime y guárdalas como `EMICRON 2019`, `EMICRON 2020`, ..., `EMICRON 2024` en tu carpeta de datos.
+   - *(Ejemplo: `C:\Proyectos\Datos\EMICRON 2019\`, `C:\Proyectos\Datos\EMICRON 2024\`, etc.)*
+   - El pipeline descubre automáticamente todos los años y módulos disponibles.
+
+5. **Proyecciones Censales DANE**
+   - Descarga `PPED-AreaDep-2018-2050_VP.csv`.
+   - *(Ejemplo: `C:\Proyectos\Datos\PPED-AreaDep-2018-2050_VP.csv`)*
+
+> ⚠️ **IMPORTANTE**: Todos los datos deben quedar en una carpeta llamada `Datos/` al **mismo nivel** que la carpeta del repositorio clonado. Si haces esto, el pipeline encontrará los archivos automáticamente incluso sin configurar el `.env`..
 
 ---
 
@@ -59,9 +79,14 @@ Las rutas de programación estáticas en Windows han sido erradicadas. Ahora, ca
 4. Abre tu nuevo `.env` y pega las rutas exactas de los archivos crudos que descargaste en el **Paso 2**:
 ```env
 CNPV_CSV_DIR="C:\Proyectos\Datos\CENSO 2018 dep"
-SECOP_CSV_PATH="C:\Proyectos\Datos\SECOP_II.csv"
+SECOP_I_CSV_PATH="C:\Proyectos\Datos\SECOP_I_-_Procesos_de_Compra_Publica_20260412.csv"
+SECOP_CSV_PATH="C:\Proyectos\Datos\SECOP_II_-_Contratos_Electronicos_20260412.csv"
+EMICRON_CSV_PATH="C:\Proyectos\Datos\EMICRON 2024"
+PROYECCIONES_CENSO_PATH="C:\Proyectos\Datos\PPED-AreaDep-2018-2050_VP.csv"
 ```
 > **Nota de Seguridad**: Al llamarlo `.env`, el archivo será **ignorado por Git** por defecto. Tus rutas locales nunca serán subidas a la rama compartida del equipo ni sobrescribirán las configuraciones de otro ingeniero. 💖
+>
+> **Tip**: Si pones todos tus datos en una carpeta `Datos/` al mismo nivel que el repositorio (`../Datos/`), el pipeline los encontrará **automáticamente** aunque no configures el `.env`.
 
 ---
 

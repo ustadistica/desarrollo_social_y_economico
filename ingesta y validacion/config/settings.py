@@ -49,23 +49,53 @@ class Settings:
         self.SODA_APP_SECRET: Optional[str] = os.getenv("SODA_APP_SECRET", "3jrwo4zsarden485vhot5q31zks79ubgtppfo2en2fx7fkzte7")
         self.DANE_API_KEY: Optional[str] = os.getenv("DANE_API_KEY")
         
-        # Parámetros de extracción SECOP II y CNPV
+        # Parámetros de extracción SECOP y CNPV
         self.SECOP_BATCH_SIZE = int(os.getenv("SECOP_BATCH_SIZE", "50000"))
         self.SECOP_MAX_RETRIES = int(os.getenv("SECOP_MAX_RETRIES", "3"))
         self.SECOP_BASE_URL = "https://www.datos.gov.co/resource/287p-52ht.json"
         
         # Leemos las rutas de los CSV locales desde variables de entorno (o .env)
-        # Por defecto, si el compañero de equipo no tiene el .env listado, buscamos en una carpeta Datos relativa al proyecto.
+        # Por defecto, si el compañero de equipo no tiene el .env listado,
+        # buscamos en una carpeta Datos relativa al proyecto (../Datos/).
+        # Se usan glob patterns para no depender de la fecha en el nombre del archivo.
         datos_folder = self.PROJECT_ROOT.parent / "Datos"
-        secop_default = datos_folder / "SECOP_II_-_Contratos_Electrónicos_20260322.csv"
+        
         cnpv_default = datos_folder / "CENSO 2018 dep"
         emicron_default = datos_folder / "EMICRON 2024"
         proyecciones_default = datos_folder / "PPED-AreaDep-2018-2050_VP.csv"
         
-        self.SECOP_CSV_PATH = Path(os.getenv("SECOP_CSV_PATH", secop_default))
+        # SECOP I - Procesos de Compra Pública (nuevo)
+        secop_i_env = os.getenv("SECOP_I_CSV_PATH")
+        if secop_i_env:
+            self.SECOP_I_CSV_PATH = Path(secop_i_env)
+        else:
+            self.SECOP_I_CSV_PATH = self._resolve_glob_path(
+                datos_folder, "SECOP_I_-_Procesos_de_Compra*.*csv"
+            )
+        
+        # SECOP II - Contratos Electrónicos
+        secop_ii_env = os.getenv("SECOP_CSV_PATH")
+        if secop_ii_env:
+            self.SECOP_CSV_PATH = Path(secop_ii_env)
+        else:
+            self.SECOP_CSV_PATH = self._resolve_glob_path(
+                datos_folder, "SECOP_II_-_Contratos_Electr*.*csv"
+            )
+        
         self.CNPV_CSV_DIR = Path(os.getenv("CNPV_CSV_DIR", cnpv_default))
-        self.EMICRON_CSV_PATH = Path(os.getenv("EMICRON_CSV_PATH", emicron_default))
         self.PROYECCIONES_CENSO_PATH = Path(os.getenv("PROYECCIONES_CENSO_PATH", proyecciones_default))
+        
+        # EMICRON - Encuesta de Micronegocios (multi-año: 2019-2024)
+        # EMICRON_CSV_PATH apunta al directorio BASE que contiene las carpetas
+        # "EMICRON 2019", "EMICRON 2020", ..., "EMICRON 2024"
+        emicron_env = os.getenv("EMICRON_CSV_PATH")
+        if emicron_env:
+            self.EMICRON_CSV_PATH = Path(emicron_env)
+        else:
+            self.EMICRON_CSV_PATH = datos_folder
+        
+        # Descubrir automáticamente qué años de EMICRON están disponibles
+        self.EMICRON_YEARS = self._discover_emicron_years(self.EMICRON_CSV_PATH)
         
         # Parámetros de calidad de datos
         self.NULL_THRESHOLD_WARNING = float(os.getenv("NULL_THRESHOLD_WARNING", "0.5"))
@@ -81,6 +111,51 @@ class Settings:
         
         # Crear directorios si no existen
         self._create_directories()
+    
+    @staticmethod
+    def _resolve_glob_path(folder: Path, pattern: str) -> Path:
+        """
+        Buscar un archivo en la carpeta usando un patrón glob.
+        
+        Retorna la ruta del primer archivo que coincida con el patrón.
+        Si no se encuentra ninguno, retorna folder / pattern como placeholder
+        para que el error sea descriptivo al intentar abrirlo.
+        
+        Parameters:
+        - folder: Directorio donde buscar
+        - pattern: Patrón glob (e.g., 'SECOP_I_*.csv')
+        
+        Returns:
+        - Path al primer archivo encontrado, o placeholder si no existe
+        """
+        if folder.exists():
+            matches = sorted(folder.glob(pattern))
+            if matches:
+                return matches[-1]  # El más reciente si hay varios
+        return folder / pattern
+    
+    @staticmethod
+    def _discover_emicron_years(base_path: Path) -> list:
+        """
+        Descubrir automáticamente qué años de EMICRON están disponibles.
+        
+        Busca carpetas con el patrón 'EMICRON YYYY' en el directorio base.
+        
+        Parameters:
+        - base_path: Directorio base donde buscar carpetas EMICRON
+        
+        Returns:
+        - Lista ordenada de tuplas (año, ruta) encontradas
+        """
+        import re
+        years = []
+        if base_path.exists() and base_path.is_dir():
+            for child in sorted(base_path.iterdir()):
+                if child.is_dir():
+                    match = re.match(r"EMICRON\s+(\d{4})", child.name)
+                    if match:
+                        years.append((int(match.group(1)), child))
+        return years
     
     def _parse_corte_date(self, date_str: str) -> datetime:
         """
