@@ -1,127 +1,34 @@
-# Observatorio de Desarrollo Social y Economico
+# Sinergia Socioeconómica - Plataforma Analítica (Medallion Architecture)
 
-> **Ustadistica** -- Consultoria e Investigacion . Universidad Santo Tomas . 2026-I
+Este es el repositorio refactorizado para el análisis avanzado de Sinergia Socioeconómica, el Gasto Público (SECOP) y el ecosistema de Micronegocios (EMICRON). Todo el código obsoleto y propenso a sesgos estadísticos fue sustituido por un pipeline analítico validado bajo la **Arquitectura Medallion (Bronze/Silver/Gold)**.
 
-Observatorio de desarrollo social (SECOP II + DANE) y economico. Analisis de equidad en contratacion publica vs. vulnerabilidad territorial.
+## ¿Por qué esta arquitectura? (Propósito)
+La ingesta manual o usar cuadernos con múltiples Joins de `pandas` provoca "Out-of-Memory" errors y fallas metodológicas críticas (como inflar NBI por no agrupar). Este repositorio ahora funciona como paquete de recolección unificado con `pyarrow` y `duckdb`:
+1. **BRONZE:** Ingiere la data cruda DANE/SECOP sin tocarla, fraccionada eficientemente en Parquet. Añade rastreo de hash y timestamp.
+2. **SILVER:** Unifica los vocabularios. Aquí ocurre toda la agrupación poblacional rigurosa, mapeos de `fex_c` reales y reducción estructural pre-calculando el cruce a granularidad estricta `Municipio - Año`.
+3. **GOLD:** Enlaza matemáticamente la constelación. Se fabrican las Tablas de Dimensiones conformadas (Tiempo/Territorio) y se arroja un datamart (OBT) listo, que computa KPIs derivados (`inversion_per_capita`) vectorizadamente para visualización PowerBI.
 
-## Fuentes de Datos
+## ¿Dónde están los outputs finales?
+**No es necesario correr extractores ni ejecutar joins a mano**. Para analistas visuales, solo necesitan usar el resultado final consumible en:
+📌 `datos/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet`
 
-SECOP II (contratacion publica), DANE Censo 2018 (condiciones socioeconomicas) -- datos.gov.co
-
-Consultar [`datos/catalogo.yaml`](datos/catalogo.yaml) para los identificadores Socrata y metadatos de cada dataset.
-
-## Preguntas de Investigacion
-
-- La contratacion publica se distribuye proporcionalmente a la vulnerabilidad territorial?
-- Existe autocorrelacion espacial (Moran's I) en la distribucion de la inversion publica?
-- Que municipios presentan mayor brecha entre vulnerabilidad socioeconomica e inversion per capita?
-- Cual es el indice de concentracion de contratos (Gini/HHI) por departamento?
-
-## Estructura del Proyecto
-
-```
-desarrollo_social_y_economico/
-|-- README.md                    # Este archivo
-|-- CONTRIBUTING.md              # Guia de contribucion y Git Flow
-|-- pyproject.toml               # Poetry (dependencias + metadata)
-|-- Dockerfile                   # Contenedor reproducible
-|-- .github/
-|   +-- workflows/
-|       +-- etl_update.yml       # GitHub Actions para ingesta periodica
-|-- src/
-|   |-- ingesta/                 # Scripts de extraccion (sodapy)
-|   |-- transformacion/          # Limpieza, normalizacion, joins
-|   |-- modelo/                  # Modelo estrella / modelado estadistico
-|   +-- visualizacion/           # Funciones de graficos reutilizables
-|-- notebooks/
-|   |-- 01_eda.ipynb
-|   |-- 02_analisis.ipynb
-|   +-- 03_modelado.ipynb
-|-- app/
-|   +-- streamlit_app.py         # Dashboard interactivo
-|-- datos/
-|   |-- raw/                     # Datos crudos (gitignored si pesados)
-|   |-- processed/               # Datos limpios
-|   +-- catalogo.yaml            # Metadatos de cada dataset
-|-- docs/                        # Informes y documentacion
-|-- tests/                       # Tests automatizados
-|-- artifacts/                   # Artefactos generados (metricas, reportes)
-+-- models/                      # Modelos serializados
-```
-
-## Instalacion
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/ustadistica/desarrollo_social_y_economico.git
-cd desarrollo_social_y_economico
-
-# Instalar dependencias con Poetry
-pip install poetry
-poetry install
-
-# Ejecutar pipeline de ingesta
-poetry run python -m src.ingesta.main
-
-# Ejecutar pipeline de transformacion
-poetry run python -m src.transformacion.main
-
-# Lanzar dashboard
-poetry run streamlit run app/streamlit_app.py
-```
-
-## Cronograma -- CRISP-DM
-
-### Sprint 1 (Sem 1-2)
-
-Definir alcance de ambos subproyectos (social + economico). Migrar modelo estrella de SQLite a DuckDB. Estructura monorepo: `social/`, `economico/`, `shared/`.
-
-### Sprint 2 (Sem 3-4)
-
-Cruce SECOP II con indicadores DANE (IPM, NBI, servicios publicos). Indicadores derivados: inversion per capita, concentracion de contratos.
-
-### Sprint 3 (Sem 5-7)
-
-Regresion espacial, Moran's I, clustering municipal. Dashboard Streamlit open-source (reemplazo de Power BI).
-
-### Sprint 4 (Sem 8)
-
-Informe final de ambos subproyectos. Dashboard desplegado en Streamlit Cloud.
-
-
-## Equipo
-
-| Rol | GitHub |
-|-----|--------|
-| Lider modelado R -- Social | [@carolinasc0328-png](https://github.com/carolinasc0328-png) |
-| Analisis + viz -- Social | [@chechitoooo](https://github.com/chechitoooo) |
-| Por perfilar -- Castano Vergara -- Social | (por confirmar) |
-| Lider de proyecto -- Economico | [@LizethVillamil](https://github.com/LizethVillamil) |
-| Modelado + analisis -- Economico | [@johannsebastian19877-png](https://github.com/johannsebastian19877-png) |
-
-**Director:** [@Izainea](https://github.com/Izainea)
-
-## Metodologia
-
-- **Framework analitico:** CRISP-DM
-- **Gestion de proyecto:** Sprints de 2 semanas con Kanban (GitHub Projects)
-- **Control de versiones:** Git Flow (`main` / `develop` / `feature/*`)
-- **Estandar operativo:** Big 4 (governance formal, auditoria cruzada, mejora continua)
-
-Consultar [CONTRIBUTING.md](CONTRIBUTING.md) para la guia completa de contribucion.
-
-## Stack Tecnologico
-
-| Capa | Herramientas |
-|------|-------------|
-| Ingesta | sodapy, pandas, requests |
-| Almacen | DuckDB (modelo estrella) |
-| Analisis | pandas, scikit-learn, statsmodels |
-| Visualizacion | matplotlib, seaborn, plotly, folium |
-| Dashboard | Streamlit |
-| Reproducibilidad | Poetry, Docker, GitHub Actions |
-| Testing | pytest, pandera |
+> *También puedes leer los reportes automáticos en la carpeta `/documentacion_tecnica/` para entender el modelo y diccionario de variables en cada fase.*
 
 ---
 
-> *"Si no esta en el README, el proyecto no existe."* -- Ustadistica 2026-I
+## 🚀 ¿Cómo usar o re-ejecutar el pipeline? (Setup y RUNBOOK)
+Todo el sistema está estructurado como paquete estándar Python. Puedes encontrar instrucciones paso a paso detalladas en el archivo [RUNBOOK.md](./RUNBOOK.md).
+
+### 1. Instalación Rápida
+Abre tu consola en esta carpeta y ejecuta:
+```bash
+pip install -e .
+```
+*(Se usarán las dependencias del archivo `pyproject.toml` que garantizan DuckDB, PyArrow, etc.)*
+
+### 2. Ejecutar el Pipeline Estandarizado (End-to-End)
+Si tienes un entorno Mac/Linux o PowerShell puedes usar nuestro Makefile, o directamente Python:
+```bash
+python run_all.py
+```
+*También es posible ejecutar las capas inviduales si buscas actualizar solo una fase particular (`python run_bronze.py`, `python run_silver.py`).*
