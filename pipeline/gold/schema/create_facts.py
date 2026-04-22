@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import pandas as pd
 import numpy as np
-from transform.standardize_geo import standardize_divipola
+from pipeline.transform.standardize_geo import standardize_divipola
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ def create_fact_vulnerabilidad(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('fact_vulnerabilidad')
     
     output_path = Path(output_path)
@@ -237,7 +237,7 @@ def create_fact_tejido_productivo(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('fact_tejido_productivo')
     
     output_path = Path(output_path)
@@ -366,7 +366,7 @@ def create_fact_contratacion(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('fact_contratacion')
     
     output_path = Path(output_path)

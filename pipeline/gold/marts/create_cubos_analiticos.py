@@ -124,7 +124,7 @@ def create_cubo_territorial_sectorial(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_oro_path('cubos_analiticos', 'cubo_territorial_sectorial')
     
     output_path = Path(output_path)
@@ -252,7 +252,7 @@ def create_cubo_temporal_municipal(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_oro_path('cubos_analiticos', 'cubo_temporal_municipal')
     
     output_path = Path(output_path)

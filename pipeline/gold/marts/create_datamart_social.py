@@ -168,7 +168,7 @@ def create_matriz_brechas(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.MODELO_ESTRELLA_PATH / 'datamart_social' / 'matriz_brechas_municipal'
     
     output_path = Path(output_path)
@@ -177,7 +177,7 @@ def create_matriz_brechas(
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    from utils.spark_session import write_parquet
+    from pipeline.utils.spark_session import write_parquet
     write_parquet(matriz, output_path)
     
     logger.info(f"Matriz de Brechas creada: {len(matriz)} municipios")
@@ -295,7 +295,7 @@ def create_inversion_vs_vulnerabilidad(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.MODELO_ESTRELLA_PATH / 'datamart_social' / 'inversion_vs_vulnerabilidad'
     
     output_path = Path(output_path)
@@ -304,7 +304,7 @@ def create_inversion_vs_vulnerabilidad(
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    from utils.spark_session import write_parquet
+    from pipeline.utils.spark_session import write_parquet
     write_parquet(agregado, output_path)
     
     logger.info(f"Inversión vs Vulnerabilidad creada: {len(agregado)} registros")
@@ -356,7 +356,7 @@ def create_autocorrelacion_espacial(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.MODELO_ESTRELLA_PATH / 'datamart_social' / 'autocorrelacion_espacial'
     
     output_path = Path(output_path)
@@ -365,7 +365,7 @@ def create_autocorrelacion_espacial(
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    from utils.spark_session import write_parquet
+    from pipeline.utils.spark_session import write_parquet
     write_parquet(resultado_df, output_path)
     
     logger.info(f"Autocorrelación Espacial calculada")

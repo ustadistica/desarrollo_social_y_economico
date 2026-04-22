@@ -1,20 +1,48 @@
 """
-Catálogo completo de códigos DIVIPOLA del DANE.
+Catálogo de códigos DIVIPOLA del DANE.
 
-Nota: Este es un subconjunto de ejemplo. En producción,
-cargar desde archivo CSV oficial del DANE.
+Permite cargar el listado completo oficial desde un archivo CSV local.
+Si el archivo no está presente, se utiliza un diccionario base de contingencia.
 """
 
 import logging
+import csv
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+import os
 
 logger = logging.getLogger(__name__)
 
+# Intentar cargar desde CSV oficial si existe
+CSV_PATH = Path("datos/bronze/divipola/divipola_oficial.csv")
 
-# Catálogo DIVIPOLA 2024 (subconjunto representativo)
-# En producción, cargar los 1102 municipios completos
-DIVIPOLA_COMPLETO: Dict[str, Dict[str, Any]] = {
+def _cargar_catalogo_csv() -> Dict[str, Dict[str, Any]]:
+    catalogo = {}
+    if CSV_PATH.exists():
+        try:
+            with open(CSV_PATH, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    div_key = str(row.get('divipola_municipio', '')).zfill(5)
+                    if len(div_key) == 5:
+                        catalogo[div_key] = {
+                            'nombre_municipio': row.get('nombre_municipio', ''),
+                            'nombre_departamento': row.get('nombre_departamento', ''),
+                            'divipola_departamento': div_key[:2],
+                            'region': row.get('region', ''),
+                            'categoria': row.get('categoria', 'Sexta')
+                        }
+            if catalogo:
+                logger.info(f"Catálogo DIVIPOLA cargado desde CSV: {len(catalogo)} registros")
+                return catalogo
+        except Exception as e:
+            logger.warning(f"Error leyendo CSV DIVIPOLA: {e}")
+    return {}
+
+_CATALOGO_DINAMICO = _cargar_catalogo_csv()
+
+# Diccionario base de contingencia (subconjunto)
+_DIVIPOLA_BASE: Dict[str, Dict[str, Any]] = {
     # Bogotá D.C.
     '11001': {
         'nombre_municipio': 'Bogotá D.C.',
@@ -904,6 +932,7 @@ DIVIPOLA_COMPLETO: Dict[str, Dict[str, Any]] = {
     },
 }
 
+DIVIPOLA_COMPLETO = _CATALOGO_DINAMICO if _CATALOGO_DINAMICO else _DIVIPOLA_BASE
 
 def cargar_divipola_desde_csv(archivo_csv: Path) -> Dict[str, Dict[str, Any]]:
     """

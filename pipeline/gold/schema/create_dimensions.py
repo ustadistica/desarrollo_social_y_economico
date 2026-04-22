@@ -37,7 +37,7 @@ def create_dim_municipio(
     logger.info("Creando dim_municipio...")
     
     # Cargar catálogo DIVIPOLA base
-    from transform.standardize_geo import load_divipola_catalog
+    from pipeline.transform.standardize_geo import load_divipola_catalog
     dim = load_divipola_catalog()
     
     # Agregar región (mapeo departamento -> región)
@@ -114,7 +114,7 @@ def create_dim_municipio(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('dim_municipio')
     
     output_path = Path(output_path)
@@ -202,7 +202,7 @@ def create_dim_tiempo(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('dim_tiempo')
     
     output_path = Path(output_path)
@@ -384,7 +384,7 @@ def create_dim_sector_ciiu(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('dim_sector_ciiu')
     
     output_path = Path(output_path)
@@ -525,7 +525,7 @@ def create_dim_sector_unspsc(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_plata_path('dim_sector_unspsc')
     
     output_path = Path(output_path)

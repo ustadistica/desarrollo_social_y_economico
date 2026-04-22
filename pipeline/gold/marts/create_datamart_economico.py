@@ -146,7 +146,7 @@ def create_matriz_sinergia(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_oro_path('datamart_economico', 'matriz_sinergia_economica')
     
     output_path = Path(output_path)
@@ -467,7 +467,7 @@ def create_impacto_economia_popular(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_oro_path('datamart_economico', 'impacto_economia_popular')
     
     output_path = Path(output_path)
@@ -563,7 +563,7 @@ def create_formalizacion_proveedores(
     
     # Guardar
     if output_path is None:
-        from config.settings import settings
+        from pipeline.config.settings import settings
         output_path = settings.get_oro_path('datamart_economico', 'formalizacion_proveedores')
     
     output_path = Path(output_path)

@@ -12,13 +12,10 @@ from pathlib import Path
 
 # Asegurar importación desde raíz de proyeto
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-if project_root not in sys.path:
-    sys.path.append(project_root)
 
-from config.settings import Settings
-import gold.schema.create_dimensions as dim_creator
-import gold.schema.create_facts as fact_creator
+from pipeline.config.settings import Settings
+import pipeline.gold.schema.create_dimensions as dim_creator
+import pipeline.gold.schema.create_facts as fact_creator
 
 def main():
     parser = argparse.ArgumentParser(description="Ejecutar capa Gold (Modelo Estrella y Data Marts)")
