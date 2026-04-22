@@ -1,34 +1,74 @@
 # Sinergia Socioeconómica - Plataforma Analítica (Medallion Architecture)
 
-Este es el repositorio refactorizado para el análisis avanzado de Sinergia Socioeconómica, el Gasto Público (SECOP) y el ecosistema de Micronegocios (EMICRON). Todo el código obsoleto y propenso a sesgos estadísticos fue sustituido por un pipeline analítico validado bajo la **Arquitectura Medallion (Bronze/Silver/Gold)**.
+Repositorio para el análisis de Sinergia Socioeconómica, Gasto Público (SECOP) y Micronegocios (EMICRON). Pipeline ETL bajo **Arquitectura Medallion (Bronze → Silver → Gold)** con DuckDB y PyArrow.
 
-## ¿Por qué esta arquitectura? (Propósito)
-La ingesta manual o usar cuadernos con múltiples Joins de `pandas` provoca "Out-of-Memory" errors y fallas metodológicas críticas (como inflar NBI por no agrupar). Este repositorio ahora funciona como paquete de recolección unificado con `pyarrow` y `duckdb`:
-1. **BRONZE:** Ingiere la data cruda DANE/SECOP sin tocarla, fraccionada eficientemente en Parquet. Añade rastreo de hash y timestamp.
-2. **SILVER:** Unifica los vocabularios. Aquí ocurre toda la agrupación poblacional rigurosa, mapeos de `fex_c` reales y reducción estructural pre-calculando el cruce a granularidad estricta `Municipio - Año`.
-3. **GOLD:** Enlaza matemáticamente la constelación. Se fabrican las Tablas de Dimensiones conformadas (Tiempo/Territorio) y se arroja un datamart (OBT) listo, que computa KPIs derivados (`inversion_per_capita`) vectorizadamente para visualización PowerBI.
+## Arquitectura
 
-## ¿Dónde están los outputs finales?
-**No es necesario correr extractores ni ejecutar joins a mano**. Para analistas visuales, solo necesitan usar el resultado final consumible en:
-📌 `datos/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet`
+1. **BRONZE** (`datos/bronze/`): Ingesta cruda a Parquet con hash y timestamp.
+2. **SILVER** (`datos/plata/`): Estandarización DIVIPOLA, agregación a grano `Municipio-Año`.
+3. **GOLD** (`datos/oro/`): Modelo estrella (dimensiones + hechos) y Datamart OBT.
 
-> *También puedes leer los reportes automáticos en la carpeta `/documentacion_tecnica/` para entender el modelo y diccionario de variables en cada fase.*
+## Output Final para Analistas
+
+No es necesario re-ejecutar el pipeline. El resultado consumible está en:
+
+```
+datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+```
+
+Los reportes de calidad están en `documentacion_tecnica/`.
 
 ---
 
-## 🚀 ¿Cómo usar o re-ejecutar el pipeline? (Setup y RUNBOOK)
-Todo el sistema está estructurado como paquete estándar Python. Puedes encontrar instrucciones paso a paso detalladas en el archivo [RUNBOOK.md](./RUNBOOK.md).
+## Instalación
 
-### 1. Instalación Rápida
-Abre tu consola en esta carpeta y ejecuta:
 ```bash
+# 1. Clonar el repositorio
+git clone <url> && cd desarrollo_social_y_economico
+
+# 2. Crear entorno virtual (recomendado)
+python -m venv .venv
+.venv\Scripts\activate    # Windows
+source .venv/bin/activate  # Mac/Linux
+
+# 3. Instalar el paquete
 pip install -e .
-```
-*(Se usarán las dependencias del archivo `pyproject.toml` que garantizan DuckDB, PyArrow, etc.)*
 
-### 2. Ejecutar el Pipeline Estandarizado (End-to-End)
-Si tienes un entorno Mac/Linux o PowerShell puedes usar nuestro Makefile, o directamente Python:
-```bash
-python run_all.py
+# 4. Configurar datos externos
+cp .env.example .env
+# Editar .env en la raíz con las rutas a tus datos locales
 ```
-*También es posible ejecutar las capas inviduales si buscas actualizar solo una fase particular (`python run_bronze.py`, `python run_silver.py`).*
+
+## Ejecución del Pipeline (Flujo Oficial)
+
+```bash
+# Pipeline completo (Bronze → Silver → Gold)
+socioeco-pipeline
+
+# Capas individuales
+socioeco-bronze
+socioeco-silver
+socioeco-gold
+
+# Alternativa via módulo Python
+python -m src.cli all
+python -m src.cli bronze
+python -m src.cli silver
+python -m src.cli gold
+```
+
+> **Nota:** También puedes ejecutar el orquestador principal mediante `python src/main.py`.
+
+## Dependencias
+
+Gestionadas en `pyproject.toml`. Instalación con `pip install -e .`. No se usa Poetry.
+
+## Documentación Técnica
+
+| Documento | Contenido |
+|-----------|-----------|
+| `INSTALACION_LIMPIA.md` | Guía detallada de instalación paso a paso |
+| `CLI_USAGE.md` | Referencia completa de comandos del CLI |
+| `IMPORT_CONVENTION.md` | Convención de imports del proyecto |
+| `pipeline/INSTRUCCIONES_EQUIPO.md` | Guía de configuración de datos para el equipo |
+| `documentacion_tecnica/DICCIONARIO_GOLD.md` | Diccionario de variables del modelo Gold |
