@@ -6,7 +6,7 @@ Nacional de Población y Vivienda 2018 organizados en carpetas por departamento.
 Lee en lotes (chunks) y consolida por módulo (Viviendas, Hogares, Personas, etc.)
 directamente a archivos Parquet en la capa Bronze usando PyArrow.
 
-Fuente: C:\\Users\\user\\Documents\\001 Uni\\Octavo\\CONSULTORIA\\Datos\\CENSO 2018 dep\\
+Fuente configurada vía variables de entorno o archivo de configuración.
 """
 
 import logging
@@ -18,17 +18,11 @@ import hashlib
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-# Importar configuración
-import sys
-import os
 
-# Asegurar que se puede importar config (agregamos ROOT al path)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
-from config.settings import Settings
+try:
+    from pipeline.config.settings import Settings
+except ImportError:
+    from pipeline.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +39,16 @@ def parse_cnpv_csv(
     Parsear directorio de archivos CSV del CNPV 2018 y convertir a Parquet por módulo.
 
     Parameters:
-    - input_dir: Directorio raíz con carpetas por departamento (default: Settings.CNPV_CSV_DIR)
+    - input_dir: Directorio raíz con carpetas por departamento (default: Settings.CNPV_ROOT_DIR)
     - output_path: Ruta de salida para archivos Parquet (default: capa Bronze / cnpv)
     - chunk_size: Tamaño de chunk para procesamiento eficiente
     
     Returns:
     - Dict con resultados de ejecución y conteos
     """
-    # Configurar rutas
     settings = Settings()
-    input_path = input_dir or settings.CNPV_CSV_DIR
+    input_path = input_dir or settings.CNPV_ROOT_DIR
     
-    # Resolver ruta de salida
     if output_path is None:
         output_path = settings.BRONZE_PATH / "cnpv"
         
@@ -65,57 +57,90 @@ def parse_cnpv_csv(
     logger.info(f"Iniciando ingesta de Microdatos CNPV desde: {input_path}")
     
     if not input_path.exists() or not input_path.is_dir():
-        logger.error(f"El directorio no existe: {input_path}")
+        logger.error(f"El directorio raíz del CNPV no existe: {input_path}")
         return {
             "status": "error",
-            "error": f"Directorio no encontrado: {input_path}"
+            "error": f"Directorio no encontrado: {input_path}. Configura CNPV_ROOT_DIR en tu .env o verifica la ruta."
         }
 
     total_records = 0
     module_counts = {}
+    departamentos_detectados = set()
+    archivos_detectados = 0
     
-    # Procesar cada módulo por separado para tener un Parquet por módulo
+    # 1. Fase de Descubrimiento (Crawling multicarpeta)
+    inventario = {module: [] for module in CNPV_MODULES}
+    
+    logger.info("Fase 1: Descubrimiento de archivos y carpetas...")
+    for dpto_dir in input_path.iterdir():
+        if not dpto_dir.is_dir():
+            continue
+            
+        dpto_name = dpto_dir.name
+        # Usar set para evitar duplicados en sistemas case-insensitive
+        archivos_en_depto = list({f.resolve() for f in dpto_dir.glob("*.[cC][sS][vV]")})
+        
+        if not archivos_en_depto:
+            continue
+            
+        departamentos_detectados.add(dpto_name)
+        
+        for file_path in archivos_en_depto:
+            archivos_detectados += 1
+            matched_module = None
+            for module in CNPV_MODULES:
+                if module in file_path.name.upper():
+                    matched_module = module
+                    break
+            
+            if matched_module:
+                inventario[matched_module].append(file_path)
+            else:
+                logger.debug(f"Archivo ignorado: {file_path.name}")
+                
+    if not departamentos_detectados:
+        logger.error(f"No se detectaron carpetas con archivos CSV en {input_path}")
+        return {"status": "error", "error": "No se encontraron subcarpetas departamentales con archivos CSV válidos."}
+        
+    logger.info(f"Descubrimiento completado: {len(departamentos_detectados)} departamentos, {archivos_detectados} archivos totales.")
+    
+    # 2. Fase de Ingesta por Módulo
     for module in CNPV_MODULES:
-        logger.info(f"=== Procesando módulo CNPV: {module} ===")
+        files_for_module = inventario[module]
+        if not files_for_module:
+            logger.warning(f"Faltan datos para el módulo {module}.")
+            continue
+            
+        logger.info(f"=== Procesando módulo CNPV: {module} ({len(files_for_module)} archivos) ===")
         parquet_file = output_path / f"cnpv_{module.lower()}_raw.parquet"
         
         writer = None
         module_records = 0
         
-        # Buscar carpetas de departamento
-        dpto_dirs = [d for d in input_path.iterdir() if d.is_dir()]
-        dpto_dirs.sort() # Procesar en orden
-        
-        for dpto_dir in dpto_dirs:
-            # Buscar archivo CSV correspondiente a este módulo en la carpeta
-            csv_files = list(dpto_dir.glob(f"*{module}*.CSV"))
-            if not csv_files:
-                logger.warning(f"No se encontró archivo para el módulo {module} en {dpto_dir.name}")
-                continue
-                
-            csv_file = csv_files[0]
-            logger.info(f"Leyendo: {csv_file.name}")
-            
+        for csv_file in files_for_module:
+            logger.info(f"Leyendo: {csv_file.parent.name}/{csv_file.name}")
             try:
-                # Leer en chunks, forzando todos los tipos a string para Bronze (evitar problemas de inferencia en parquet)
-                for i, chunk in enumerate(pd.read_csv(csv_file, chunksize=chunk_size, dtype=str, keep_default_na=False)):
-                    # Validar si el chunk está vacío
+                # Detectar el separador leyendo la primera linea
+                with open(csv_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    first_line = f.readline()
+                sep = ';' if ';' in first_line else ','
+                
+                # Leer en chunks
+                for i, chunk in enumerate(pd.read_csv(csv_file, chunksize=chunk_size, dtype=str, keep_default_na=False, on_bad_lines='skip', sep=sep)):
                     if chunk.empty:
                         continue
                         
-                    # Añadir metadatos de ingesta
                     chunk["_ingestion_timestamp"] = datetime.now().isoformat()
                     chunk["_source"] = "dane_cnpv"
                     chunk["_source_version"] = "CNPV_2018"
-                    chunk["_extraction_method"] = "CSV_LOCAL_PARSER"
+                    chunk["_extraction_method"] = "CSV_LOCAL_PARSER_MULTI"
+                    chunk["_source_file"] = csv_file.name
                     
-                    # Generar hash corto de forma vectorizada (muy rpido)
                     hash_str = pd.util.hash_pandas_object(chunk).astype(str)
                     chunk["_checksum_md5"] = hash_str
                     
                     table = pa.Table.from_pandas(chunk)
                     
-                    # Inicializar escritor Parquet usando el schema inferido del primer chunk
                     if writer is None:
                         writer = pq.ParquetWriter(parquet_file, table.schema, compression='snappy')
                         
@@ -124,7 +149,6 @@ def parse_cnpv_csv(
                     
             except Exception as e:
                 logger.error(f"Error procesando {csv_file.name}: {str(e)}")
-                # Continuar con el siguiente archivo
                 
         if writer:
             writer.close()
@@ -140,12 +164,14 @@ def parse_cnpv_csv(
     return {
         "status": "success",
         "archivo": str(input_path),
+        "departamentos_detectados": len(departamentos_detectados),
+        "archivos_detectados": archivos_detectados,
         "registros": total_records,
         "detalles": module_counts,
         "metadata": {
             "timestamp": datetime.now().isoformat(),
             "source": "dane_cnpv",
-            "metodo": "CSV_LOCAL_PARSER"
+            "metodo": "CSV_LOCAL_PARSER_MULTI"
         }
     }
 

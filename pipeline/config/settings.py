@@ -44,9 +44,9 @@ class Settings:
         self.MODELO_ESTRELLA_PATH = self.PROJECT_ROOT / "modelo_estrella_pyspark"
         
         # Configuración de APIs - datos.gov.co
-        # API Token para SODA API (datos.gov.co)
-        self.SODA_APP_TOKEN: Optional[str] = os.getenv("SODA_APP_TOKEN", "579j8r2q0n5wl8u0okmc3blo6")
-        self.SODA_APP_SECRET: Optional[str] = os.getenv("SODA_APP_SECRET", "3jrwo4zsarden485vhot5q31zks79ubgtppfo2en2fx7fkzte7")
+        # API Token para SODA API (datos.gov.co) — configurar en .env
+        self.SODA_APP_TOKEN: Optional[str] = os.getenv("SODA_APP_TOKEN")
+        self.SODA_APP_SECRET: Optional[str] = os.getenv("SODA_APP_SECRET")
         self.DANE_API_KEY: Optional[str] = os.getenv("DANE_API_KEY")
         
         # Parámetros de extracción SECOP y CNPV
@@ -58,7 +58,7 @@ class Settings:
         # Por defecto, si el compañero de equipo no tiene el .env listado,
         # buscamos en una carpeta Datos relativa al proyecto (../Datos/).
         # Se usan glob patterns para no depender de la fecha en el nombre del archivo.
-        datos_folder = self.PROJECT_ROOT.parent / "Datos"
+        datos_folder = self.PROJECT_ROOT.parent.parent / "Datos"
         
         cnpv_default = datos_folder / "CENSO 2018 dep"
         emicron_default = datos_folder / "EMICRON 2024"
@@ -82,7 +82,7 @@ class Settings:
                 datos_folder, "SECOP_II_-_Contratos_Electr*.*csv"
             )
         
-        self.CNPV_CSV_DIR = Path(os.getenv("CNPV_CSV_DIR", cnpv_default))
+        self.CNPV_ROOT_DIR = Path(os.getenv("CNPV_ROOT_DIR", cnpv_default))
         self.PROYECCIONES_CENSO_PATH = Path(os.getenv("PROYECCIONES_CENSO_PATH", proyecciones_default))
         
         # EMICRON - Encuesta de Micronegocios (multi-año: 2019-2024)

@@ -33,13 +33,13 @@ def clean_cnpv_data(bronze_path: Path, silver_path: Path, settings: Any) -> Dict
     logger.info("Iniciando agregacion final de CNPV 2018...")
     output_file = silver_path / "silver_cnpv_agregado.parquet"
 
-    parquet_files = sorted(bronze_path.rglob("*.parquet"))
+    parquet_files = list(bronze_path.rglob("cnpv_5per_raw*.parquet"))
     if not parquet_files:
-        logger.warning(f"No hay datos de CNPV en Bronze ({bronze_path}).")
+        logger.warning(f"No se encontró el módulo de personas (cnpv_5per_raw*.parquet) en Bronze ({bronze_path}).")
         return {
             "status": "failed",
-            "error": "No hay datos de CNPV en Bronze.",
-            "pendiente": "Ingestar CNPV desde fuente DANE (CSV por departamento).",
+            "error": "Módulo 5PER (personas) ausente.",
+            "pendiente": "Ingestar CNPV asegurando el módulo de personas.",
         }
 
     try:
