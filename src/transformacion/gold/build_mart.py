@@ -90,10 +90,18 @@ def build_datamart(gold_path: Path) -> Dict[str, Any]:
             df_.drop(columns=cols_drop, inplace=True)
 
     # ---- Spine: solo pares (divipola, anio) con al menos 1 fact real ----
+    # Limitar a los años definidos en dim_tiempo (2018-2029); fact_demografia
+    # cubre proyecciones DANE hasta 2050, pero el mart analítico solo contempla
+    # el horizonte definido por la dimensión tiempo.
+    anios_validos = set(dim_tiempo["anio_key"].dropna().astype(int).tolist())
+
     pares = []
     for df_ in (f_cnt, f_mic, f_dem):
         if not df_.empty and "divipola_key" in df_.columns and "anio_key" in df_.columns:
-            pares.append(df_[["divipola_key", "anio_key"]].dropna())
+            sub = df_[["divipola_key", "anio_key"]].dropna().copy()
+            sub["anio_key"] = pd.to_numeric(sub["anio_key"], errors="coerce").astype("Int64")
+            sub = sub[sub["anio_key"].isin(anios_validos)]
+            pares.append(sub)
 
     if pares:
         spine = pd.concat(pares, ignore_index=True).drop_duplicates()
@@ -127,8 +135,17 @@ def build_datamart(gold_path: Path) -> Dict[str, Any]:
     df = df.merge(dim_tiempo, on="anio_key", how="left")
 
     df = df.merge(f_cnt, on=["divipola_key", "anio_key"], how="left")
-    df = df.merge(f_mic, on=["divipola_key", "anio_key"], how="left")
-    df = df.merge(f_dem, on=["divipola_key", "anio_key"], how="left")
+
+    # fact_micronegocios y fact_demografia son de granularidad DEPARTAMENTAL
+    # (divipola XX000). Para municipios se hace lookup por código departamental
+    # (primeros 2 dígitos + "000") de modo que cada municipio hereda los
+    # indicadores del agregado departamental al que pertenece.
+    df["_div_depto"] = df["divipola_key"].str[:2] + "000"
+    f_mic_join = f_mic.rename(columns={"divipola_key": "_div_depto"})
+    f_dem_join = f_dem.rename(columns={"divipola_key": "_div_depto"})
+    df = df.merge(f_mic_join, on=["_div_depto", "anio_key"], how="left")
+    df = df.merge(f_dem_join, on=["_div_depto", "anio_key"], how="left")
+    df = df.drop(columns=["_div_depto"])
 
     # CNPV: broadcast por divipola (censo es snapshot 2018)
     cen_broadcast = f_cen[["divipola_key", "poblacion_total_base"]].rename(

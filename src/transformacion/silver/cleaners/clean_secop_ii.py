@@ -44,13 +44,11 @@ def _pick(idx: dict, candidates_norm: tuple) -> str | None:
     return None
 
 
-_MONEDA_RE = re.compile(r"[^\d\-\.]")
+_MONEDA_RE = re.compile(r"[^\d\-]")
 
 def _parse_valor(s: pd.Series) -> pd.Series:
-    """SECOP II suele venir como número; tolera formatos con separador."""
-    s2 = s.astype(str).str.replace(",", ".", regex=False)
-    s2 = s2.str.replace(_MONEDA_RE, "", regex=True)
-    s2 = s2.replace("", None)
+    """$1.234.567 -> 1234567 (elimina TODO lo no dígito; formato colombiano con punto como miles)."""
+    s2 = s.astype(str).str.replace(_MONEDA_RE, "", regex=True).replace("", None)
     return pd.to_numeric(s2, errors="coerce").fillna(0.0)
 
 
