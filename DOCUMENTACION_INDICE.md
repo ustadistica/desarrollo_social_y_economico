@@ -20,8 +20,8 @@ Guía rápida para navegar toda la documentación del proyecto, organizada por e
 
 | Documento | Descripción |
 |-----------|------------|
-| [`documentacion_tecnica/MEDALLION_ARCHITECTURE_GUIDE.md`](documentacion_tecnica/MEDALLION_ARCHITECTURE_GUIDE.md) | Detalle técnico de las 3 capas (Bronze, Silver, Gold). Decisiones clave, bugs encontrados y soluciones, limitaciones conocidas. |
-| [`documentacion_tecnica/DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) | Esquemas esperados en cada tabla (Parquet). Clave primaria, tipos de datos, restricciones. |
+| [`documentacion_tecnica/DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) | Esquemas esperados en cada tabla (Parquet). Clave primaria, tipos de datos, restricciones, validaciones. |
+| [`documentacion_tecnica/DICCIONARIO_GOLD.md`](documentacion_tecnica/DICCIONARIO_GOLD.md) | Diccionario de columnas de Gold. Dimensiones, tablas de hechos, métricas y descripciones. |
 
 ---
 
@@ -29,9 +29,9 @@ Guía rápida para navegar toda la documentación del proyecto, organizada por e
 
 | Documento | Descripción |
 |-----------|------------|
-| [`documentacion_tecnica/BRONZE_VALIDATION_REPORT.md`](documentacion_tecnica/BRONZE_VALIDATION_REPORT.md) | Validaciones automáticas en ingesta (Bronze). Integridad de Parquet, conteos, esquemas. |
+| [`documentacion_tecnica/DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) | Validaciones en cada capa. Esquemas esperados, nulabilidad, restricciones, assertions. |
 | [`documentacion_tecnica/VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md`](documentacion_tecnica/VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md) | Deduplicación SECOP I+II. Estrategia COUNT(DISTINCT nit) sobre UNION transaccional. |
-| [`documentacion_tecnica/RECONCILIACION_FINAL_FUENTES.md`](documentacion_tecnica/RECONCILIACION_FINAL_FUENTES.md) | Auditoría final: verificación de integridad entre capas, sumatorias poblacionales, montos de inversión. |
+| [`documentacion_tecnica/RECONCILIACION_CNPV_SECOP_EMICRON.md`](documentacion_tecnica/RECONCILIACION_CNPV_SECOP_EMICRON.md) | Auditoría: integración y reconciliación entre todas las fuentes de datos. |
 
 ---
 
@@ -67,13 +67,13 @@ Guía rápida para navegar toda la documentación del proyecto, organizada por e
 ## 🎯 Cómo Usar Este Índice
 
 ### **Si Necesitas Entender el Pipeline Completo:**
-1. Lee: [`INGESTA_VALIDACION_CRUCE.md`](documentacion_tecnica/INGESTA_VALIDACION_CRUCE.md)
-2. Luego: [`MEDALLION_ARCHITECTURE_GUIDE.md`](documentacion_tecnica/MEDALLION_ARCHITECTURE_GUIDE.md)
+1. Lee: [`INGESTA_VALIDACION_CRUCE.md`](documentacion_tecnica/INGESTA_VALIDACION_CRUCE.md) — Documento maestro
+2. Consulta: [`DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) — Esquemas y validaciones
 
 ### **Si Necesitas Validar Datos:**
-1. [`BRONZE_VALIDATION_REPORT.md`](documentacion_tecnica/BRONZE_VALIDATION_REPORT.md) — Ingesta
-2. [`DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) — Esquemas esperados
-3. [`RECONCILIACION_FINAL_FUENTES.md`](documentacion_tecnica/RECONCILIACION_FINAL_FUENTES.md) — Auditoría final
+1. [`DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) — Esquemas esperados, nulabilidad, restricciones
+2. [`VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md`](documentacion_tecnica/VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md) — Deduplicación SECOP
+3. [`RECONCILIACION_CNPV_SECOP_EMICRON.md`](documentacion_tecnica/RECONCILIACION_CNPV_SECOP_EMICRON.md) — Auditoría final
 
 ### **Si Necesitas Entender Una Fuente Específica:**
 - **CNPV:** [`CNPV_MASTER_DOCUMENTATION.md`](documentacion_tecnica/CNPV_MASTER_DOCUMENTATION.md)
