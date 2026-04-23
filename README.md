@@ -20,7 +20,19 @@ Los reportes de calidad están en `documentacion_tecnica/`.
 
 ---
 
-## Instalación
+## 🚀 Instalación Rápida
+
+### Para Nuevos Compañeros
+
+⭐ **Lee primero:** [`INSTALACION_COMPAÑEROS.md`](INSTALACION_COMPAÑEROS.md)
+
+Esta guía te explica:
+1. Cómo clonar el repo
+2. **DÓNDE colocar la carpeta "Datos"** (problema común)
+3. Cómo verificar la configuración
+4. Cómo ejecutar el pipeline completo
+
+### Paso a Paso
 
 ```bash
 # 1. Clonar el repositorio
@@ -34,10 +46,30 @@ source .venv/bin/activate  # Mac/Linux
 # 3. Instalar el paquete
 pip install -e .
 
-# 4. Configurar datos externos
+# 4. Verificar que la carpeta "Datos" esté en el lugar correcto
+python -m src.validadores.verificar_datos
+
+# 5. Configurar datos externos (opcional, solo si "Datos" está en otro lado)
 cp .env.example .env
-# Editar .env en la raíz con las rutas a tus datos locales
+# Editar .env con tus rutas locales (ver SETUP_DATOS.md)
 ```
+
+### ⚠️ Problema Común: "Carpeta Datos no encontrada"
+
+La carpeta "Datos" debe estar en:
+```
+CONSULTORIA/
+├── Datos/                           ← AQUÍ (al lado de CONSULTORIA)
+└── Desarrollo social y economico/
+    └── desarrollo_social_y_economico/
+```
+
+**NO** en:
+- ❌ `desarrollo_social_y_economico/Datos/`
+- ❌ `Octavo/Datos/`
+- ❌ `~/Descargas/Datos/`
+
+Ver [`SETUP_DATOS.md`](SETUP_DATOS.md) para detalles.
 
 ## Ejecución del Pipeline (Flujo Oficial)
 

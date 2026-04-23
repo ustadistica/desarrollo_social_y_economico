@@ -1,0 +1,137 @@
+================================================================================
+        CÓMO EJECUTAR EL PIPELINE - GUÍA RÁPIDA PARA COMPAÑEROS
+================================================================================
+
+PROBLEMA ENCONTRADO:
+  El pipeline fallaba en la ingesta porque la carpeta "Datos" no se encontraba
+  en el lugar correcto. He corregido esto y ahora funciona con cualquier
+  estructura de carpetas.
+
+================================================================================
+                              SOLUCIÓN RÁPIDA
+================================================================================
+
+1. CLONAR REPOSITORIO:
+   cd /ruta/a/CONSULTORIA
+   git clone <URL_DEL_REPO>
+   cd desarrollo_social_y_economico
+
+2. DESCARGAR CARPETA "Datos" (les daré el link):
+   - Descomprimirla en: CONSULTORIA/Datos/
+   - Debe contener:
+     * CENSO 2018 dep/
+     * EMICRON 2019/, EMICRON 2020/, ..., EMICRON 2024/
+     * SECOP_I_-_Procesos_de_Compra_Pública_*.csv
+     * SECOP_II_-_Contratos_Electrónicos_*.csv
+     * PPED-AreaDep-2018-2050_VP.csv
+
+3. INSTALAR PYTHON:
+   python -m venv .venv
+   .venv\Scripts\activate      # Windows
+   source .venv/bin/activate   # Mac/Linux
+   pip install -e .
+
+4. VERIFICAR CONFIGURACIÓN:
+   python -m src.validadores.verificar_datos
+
+   Si ves ✅ en todo, continúa. Si ves ❌, la carpeta "Datos" no está bien.
+
+5. EJECUTAR PIPELINE (puede tardar 15-25 minutos):
+   python src/ingesta/run_bronze.py
+   python src/transformacion/run_silver.py
+   python src/transformacion/run_gold.py
+
+6. USAR RESULTADO FINAL:
+   datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+
+   En Python:
+   import pandas as pd
+   obt = pd.read_parquet("datos/oro/marts/latest/mart_*.parquet")
+
+================================================================================
+                             ESTRUCTURA DE CARPETAS
+================================================================================
+
+Debe quedar así:
+
+Octavo/
+├── CONSULTORIA/
+│   ├── Datos/                        ← Importante: aquí va la carpeta Datos
+│   │   ├── CENSO 2018 dep/
+│   │   ├── EMICRON 2019/ ... 2024/
+│   │   └── *.csv (SECOP, PPED)
+│   │
+│   └── Desarrollo social y economico/
+│       └── desarrollo_social_y_economico/
+│           ├── src/
+│           ├── datos/
+│           ├── INSTALACION_COMPAÑEROS.md  ← Lee esto
+│           └── ...
+
+NO HACER:
+  ❌ desarrollo_social_y_economico/Datos/
+  ❌ Octavo/Datos/
+  ❌ ~/Downloads/Datos/
+  ❌ Otro lugar cualquiera
+
+================================================================================
+                         ¿PROBLEMAS? LEE ESTO PRIMERO
+================================================================================
+
+Si falla el validador (ves ❌):
+  1. Verifica que la carpeta "Datos" esté en: CONSULTORIA/Datos/
+  2. Lee: INSTALACION_COMPAÑEROS.md (hay screenshots)
+  3. Lee: SETUP_DATOS.md (guía detallada)
+
+Si falla la ingesta:
+  1. Ejecuta de nuevo: python -m src.validadores.verificar_datos
+  2. Si dice ✅, pero aun así falla, contacta con Johann
+  3. Envía el mensaje de error exacto
+
+Si tarda mucho en Bronze:
+  Es normal, SECOP II tiene 9.6GB. Puede tardar 10-15 minutos.
+  No canceles el proceso.
+
+================================================================================
+                              PREGUNTAS COMUNES
+================================================================================
+
+¿Dónde va la carpeta "Datos"?
+  → En CONSULTORIA/Datos/ (al lado de "Desarrollo social y economico")
+
+¿Necesito editar .env?
+  → NO, solo si pusiste "Datos" en otro lugar
+
+¿Cuánto tarda?
+  → Bronze: 10-15 min
+     Silver: 2-5 min
+     Gold: 1-2 min
+     Total: ~20 min
+
+¿Necesito ejecutar todo de nuevo?
+  → No, después de la primera vez puedes solo usar los resultados en
+    datos/oro/marts/latest/
+
+¿En qué carpeta ejecuto los comandos?
+  → En: desarrollo_social_y_economico/ (donde está el README)
+
+================================================================================
+                              DOCUMENTOS ÚTILES
+================================================================================
+
+- INSTALACION_COMPAÑEROS.md       ← Lee esto primero (paso a paso)
+- SETUP_DATOS.md                  ← Estructura de carpetas detallada
+- DIAGNOSTICO_PROBLEMA_INGESTA.md ← Qué corregí y por qué
+- README.md                        ← Info general del proyecto
+
+================================================================================
+
+ÚLTIMA ACTUALIZACIÓN: 2026-04-23
+VERSIÓN: 1.0 (Pipeline completo y funcional)
+
+¿Problemas? Ejecuta primero:
+  python -m src.validadores.verificar_datos
+
+Si aún así hay problemas, contacta a Johann con el output del validador.
+
+================================================================================

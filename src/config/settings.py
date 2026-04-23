@@ -3,11 +3,14 @@ Configuración general del pipeline ETL/ELT.
 """
 
 import os
+import logging
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
-import yaml
 from dotenv import load_dotenv
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # Cargar variables del .env
 env_path = Path(__file__).parent.parent / '.env'
@@ -56,9 +59,33 @@ class Settings:
         
         # Leemos las rutas de los CSV locales desde variables de entorno (o .env)
         # Por defecto, si el compañero de equipo no tiene el .env listado,
-        # buscamos en una carpeta Datos relativa al proyecto (../Datos/).
+        # buscamos en una carpeta Datos relativa al proyecto.
+        # Estrategia de búsqueda:
+        # 1. ../Datos/ (un nivel arriba: para estructura Desarrollo/desarrollo_proyecto/src)
+        # 2. ../../Datos/ (dos niveles: para estructura CONSULTORIA/Desarrollo/proyecto/src)
         # Se usan glob patterns para no depender de la fecha en el nombre del archivo.
-        datos_folder = self.PROJECT_ROOT.parent.parent / "Datos"
+        datos_folder = None
+        candidate_paths = [
+            self.PROJECT_ROOT / "Datos",  # Dentro del proyecto
+            self.PROJECT_ROOT.parent / "Datos",  # Un nivel arriba
+            self.PROJECT_ROOT.parent.parent / "Datos",  # Dos niveles arriba (CONSULTORIA/Datos)
+        ]
+        for candidate in candidate_paths:
+            if candidate.exists():
+                datos_folder = candidate
+                break
+
+        if datos_folder is None:
+            # Si no encuentra en ningún lado, usar la ubicación por defecto (y error después)
+            datos_folder = self.PROJECT_ROOT.parent.parent / "Datos"
+            logger.warning(
+                f"Carpeta 'Datos' no encontrada en las ubicaciones esperadas:\n"
+                f"  • {self.PROJECT_ROOT / 'Datos'}\n"
+                f"  • {self.PROJECT_ROOT.parent / 'Datos'}\n"
+                f"  • {self.PROJECT_ROOT.parent.parent / 'Datos'}\n"
+                f"Buscaré en: {datos_folder}\n"
+                f"Si no está allí, configura el .env con las rutas explícitas."
+            )
         
         cnpv_default = datos_folder / "CENSO 2018 dep"
         emicron_default = datos_folder / "EMICRON 2024"
