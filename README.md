@@ -95,12 +95,23 @@ python -m src.cli gold
 
 Gestionadas en `pyproject.toml`. Instalación con `pip install -e .`. No se usa Poetry.
 
-## Documentación Técnica
+## 📚 Documentación
 
-| Documento | Contenido |
-|-----------|-----------|
-| `INSTALACION_LIMPIA.md` | Guía detallada de instalación paso a paso |
-| `CLI_USAGE.md` | Referencia completa de comandos del CLI |
-| `IMPORT_CONVENTION.md` | Convención de imports del proyecto |
-| `pipeline/INSTRUCCIONES_EQUIPO.md` | Guía de configuración de datos para el equipo |
-| `documentacion_tecnica/DICCIONARIO_GOLD.md` | Diccionario de variables del modelo Gold |
+### Para Empezar (Raíz)
+- **[README.md](README.md)** — Este archivo
+- **[INSTALACION_COMPAÑEROS.md](INSTALACION_COMPAÑEROS.md)** — Guía de instalación paso a paso
+- **[SETUP_DATOS.md](SETUP_DATOS.md)** — Dónde colocar la carpeta de datos
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — Guía de contribución
+
+### Documentación Técnica
+- **[DOCUMENTACION_INDICE.md](documentacion_tecnica/DOCUMENTACION_INDICE.md)** — Índice de toda la documentación técnica
+- **[INFORME_TECNICO_INGESTA_CRUCE.md](docs/INFORME_TECNICO_INGESTA_CRUCE.md)** — Documentación completa de ingesta, validación y cruces
+- **[JUSTIFICACION_ACADEMICA_METODOLOGIA.md](documentacion_tecnica/JUSTIFICACION_ACADEMICA_METODOLOGIA.md)** — Justificación académica de métodos
+
+### Referencia Técnica
+- **[DATA_CONTRACTS.md](documentacion_tecnica/DATA_CONTRACTS.md)** — Esquemas esperados en cada tabla
+- **[CAMBIOS_TECNICOS_REALIZADOS.md](documentacion_tecnica/CAMBIOS_TECNICOS_REALIZADOS.md)** — Cambios técnicos implementados
+
+### Diagnóstico y Soporte
+- **[DIAGNOSTICO_PROBLEMA_INGESTA.md](docs/DIAGNOSTICO_PROBLEMA_INGESTA.md)** — Qué problema había y cómo se solucionó
+- **[RESUMEN_PARA_COMPAÑEROS.txt](docs/RESUMEN_PARA_COMPAÑEROS.txt)** — Resumen ejecutivo para distribución rápida

@@ -1,6 +1,9 @@
-# Índice de Documentación Técnica — Pipeline Socioeconómico
+# Índice de Documentación — Pipeline Socioeconómico
 
-Guía rápida para navegar toda la documentación del proyecto, organizada por etapas y temas.
+Guía rápida para navegar toda la documentación del proyecto. La estructura está organizada en:
+- **Raíz** — Documentos para empezar (instalación, setup)
+- **documentacion_tecnica/** — Documentación técnica de datos
+- **docs/** — Informes y diagnósticos
 
 ---
 
@@ -10,9 +13,9 @@ Guía rápida para navegar toda la documentación del proyecto, organizada por e
 
 | Documento | Descripción |
 |-----------|------------|
-| [`documentacion_tecnica/INGESTA_VALIDACION_CRUCE.md`](documentacion_tecnica/INGESTA_VALIDACION_CRUCE.md) | **📌 DOCUMENTO MAESTRO.** Ingesta (Bronze) → Validación (Silver) → Cruce (Gold). Incluye: estructura de carpetas, responsabilidades, bugs corregidos, verificación final. **Comience aquí.** |
-| [`src/README.md`](src/README.md) | Estructura interna de `src/`. Flujo de datos, salidas principales, bugs corregidos. |
-| [`datos/README.md`](datos/README.md) | Contexto de datos SECOP (histórico y actualización). |
+| [`../docs/INFORME_TECNICO_INGESTA_CRUCE.md`](../docs/INFORME_TECNICO_INGESTA_CRUCE.md) | **📌 DOCUMENTO MAESTRO.** Ingesta (Bronze) → Validación (Silver) → Cruce (Gold). Incluye: estructura de capas, responsabilidades, bugs corregidos, diccionario Gold integrado, metodología EMICRON. **Comience aquí.** |
+| [`../src/README.md`](../src/README.md) | Estructura interna de `src/`. Flujo de datos, salidas principales, bugs corregidos. |
+| [`../datos/README.md`](../datos/README.md) | Contexto de datos SECOP (histórico y actualización). |
 
 ---
 
@@ -20,8 +23,8 @@ Guía rápida para navegar toda la documentación del proyecto, organizada por e
 
 | Documento | Descripción |
 |-----------|------------|
-| [`documentacion_tecnica/DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) | Esquemas esperados en cada tabla (Parquet). Clave primaria, tipos de datos, restricciones, validaciones. |
-| [`documentacion_tecnica/DICCIONARIO_GOLD.md`](documentacion_tecnica/DICCIONARIO_GOLD.md) | Diccionario de columnas de Gold. Dimensiones, tablas de hechos, métricas y descripciones. |
+| [`DATA_CONTRACTS.md`](DATA_CONTRACTS.md) | Esquemas esperados en cada tabla (Parquet). Clave primaria, tipos de datos, restricciones, validaciones. |
+| [`../docs/INFORME_TECNICO_INGESTA_CRUCE.md`](../docs/INFORME_TECNICO_INGESTA_CRUCE.md#diccionario-gold) | Diccionario de columnas de Gold (sección integrada). Dimensiones, tablas de hechos, métricas y descripciones. |
 
 ---
 
@@ -29,9 +32,9 @@ Guía rápida para navegar toda la documentación del proyecto, organizada por e
 
 | Documento | Descripción |
 |-----------|------------|
-| [`documentacion_tecnica/DATA_CONTRACTS.md`](documentacion_tecnica/DATA_CONTRACTS.md) | Validaciones en cada capa. Esquemas esperados, nulabilidad, restricciones, assertions. |
-| [`documentacion_tecnica/VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md`](documentacion_tecnica/VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md) | Deduplicación SECOP I+II. Estrategia COUNT(DISTINCT nit) sobre UNION transaccional. |
-| [`documentacion_tecnica/RECONCILIACION_CNPV_SECOP_EMICRON.md`](documentacion_tecnica/RECONCILIACION_CNPV_SECOP_EMICRON.md) | Auditoría: integración y reconciliación entre todas las fuentes de datos. |
+| [`DATA_CONTRACTS.md`](DATA_CONTRACTS.md) | Validaciones en cada capa. Esquemas esperados, nulabilidad, restricciones, assertions. |
+| [`VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md`](VALIDACION_NO_DOBLE_CONTEO_PROVEEDORES.md) | Deduplicación SECOP I+II. Estrategia COUNT(DISTINCT nit) sobre UNION transaccional. |
+| [`RECONCILIACION_CNPV_SECOP_EMICRON.md`](RECONCILIACION_CNPV_SECOP_EMICRON.md) | Auditoría: integración y reconciliación entre todas las fuentes de datos. |
 
 ---
 
