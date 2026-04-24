@@ -45,6 +45,31 @@ Tipos validos:
   chore:    Mantenimiento
 ```
 
+## Instalación Limpia y Configuración
+Para asegurar un entorno de trabajo reproducible, siga estos pasos:
+
+1. **Clonar el repositorio.**
+2. **Crear un entorno virtual:** `python -m venv venv`
+3. **Activar el entorno:** `.\venv\Scripts\activate` (Windows) o `source venv/bin/activate` (Mac/Linux).
+4. **Instalar dependencias en modo editable:** `pip install -e .`
+5. **Configurar variables de entorno:** Copiar `pipeline/.env.example` a `pipeline/.env` y ajustar las rutas.
+
+---
+
+## Convenciones de Desarrollo
+
+### Importaciones (Import Conventions)
+Para evitar dependencias circulares y rutas absolutas fallidas:
+- Use siempre rutas relativas dentro del paquete `pipeline`.
+- Ejemplo: `from ..utils import logger` en lugar de `import pipeline.utils.logger`.
+- No use `sys.path.append` en scripts productivos.
+
+### Estructura de Datos
+- **Bronze:** Nunca modifique manualmente los archivos en `datos/bronze/`.
+- **Git Tracking:** No suba archivos `.parquet`, `.csv` o `.xlsx` pesados. Use el `.gitignore` proporcionado.
+
+---
+
 ## Roles del Equipo
 
 | Rol | Responsabilidad | KPI |
@@ -58,8 +83,8 @@ Tipos validos:
 
 Un entregable esta **DONE** cuando:
 
-- [ ] El codigo pasa todos los tests (`poetry run pytest`)
-- [ ] El codigo fue revisado en PR por al menos un companero
-- [ ] La documentacion relevante fue actualizada
-- [ ] Los datos generados son reproducibles desde el pipeline
-- [ ] No hay secretos ni credenciales en el codigo
+- [ ] El codigo pasa los tests básicos (`pytest`).
+- [ ] El codigo fue revisado en PR por al menos un companero.
+- [ ] La documentacion relevante fue actualizada en `documentacion_tecnica/`.
+- [ ] Los datos generados son reproducibles mediante la CLI `socioeco-pipeline`.
+- [ ] No hay secretos ni credenciales en el codigo.

@@ -1,5 +1,6 @@
 # Entorno virtual y secretos
 .env
+pipeline/.env
 
 # Archivos fuente y crudos
 datos/
@@ -8,16 +9,23 @@ modelo_estrella_duckdb/*.db
 modelo_estrella_pyspark/
 *.duckdb
 *.parquet
+*.db
 
 # Artefactos y compilados
 artifacts/
 __pycache__/
 *.pyc
+*.egg-info/
 
-# Spark / Java logs
+# Spark / Java / Pipeline logs
+*.log
+logs/
+out.log
 derby.log
 metastore_db/
 spark-warehouse/
 
 # IDE y herramientas
 .qwen/
+.vscode/
+.idea/

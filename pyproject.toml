@@ -1,26 +1,70 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "socioeco_pipeline"
-version = "1.0.0"
+version = "1.1.0"
 description = "Pipeline orquestador (Medallion Architecture) para el análisis de desarrollo social y económico en Colombia."
-authors = [{name = "Data Engineering Team"}]
-requires-python = ">=3.9"
+authors = [{name = "Data Engineering Team — Consultorio de Estadística USTA"}]
+requires-python = ">=3.9,<3.13"
+readme = "README.md"
+license = {text = "MIT"}
+
 dependencies = [
+    # Core analítico
     "pandas>=1.5.0",
+    "numpy>=1.24.0",
     "pyarrow>=10.0.0",
     "duckdb>=0.9.0",
-    "python-dotenv>=1.0.0"
+
+    # Configuración y entorno
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+
+    # Extracción y API
+    "requests>=2.28.0",
+    "chardet>=5.0.0",
+
+    # Validación de datos
+    "pandera>=0.18.0",
 ]
 
 [project.optional-dependencies]
+spark = [
+    "pyspark>=3.5.0",
+]
+geo = [
+    "geopandas>=0.14.0",
+    "shapely>=2.0.0",
+    "libpysal>=4.8.0",
+    "esda>=2.5.0",
+    "mapclassify>=2.7.0",
+]
+dashboard = [
+    "streamlit>=1.30.0",
+]
+sql = [
+    "pandasql>=0.7.3",
+]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.1.0",
     "black>=22.0.0",
-    "flake8>=6.0.0"
+    "flake8>=6.0.0",
+]
+all = [
+    "socioeco_pipeline[spark,geo,dashboard,sql,dev]",
 ]
 
-[tool.setuptools]
-packages = ["pipeline"]
+[project.scripts]
+socioeco-bronze = "src.cli:cmd_bronze"
+socioeco-silver = "src.cli:cmd_silver"
+socioeco-gold = "src.cli:cmd_gold"
+socioeco-pipeline = "src.cli:cmd_all"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+src = ["config/*.yaml", "ingesta/config/*.yaml", "transformacion/config/*.yaml"]
