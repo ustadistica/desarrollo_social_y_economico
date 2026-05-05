@@ -1,9 +1,15 @@
 import os
 import sys
 
+from dotenv import load_dotenv
+load_dotenv() # Cargar variables del .env
+
 # Forzar la inclusión de las variables de entorno de Java y Hadoop en la sesión actual
-os.environ['JAVA_HOME'] = r"C:\Program Files\ojdkbuild\java-11-openjdk-11.0.15-1"
-os.environ['HADOOP_HOME'] = r"C:\hadoop"
+if not os.environ.get('JAVA_HOME'):
+    print("Advertencia: JAVA_HOME no está configurado.")
+if not os.environ.get('HADOOP_HOME') and os.name == 'nt':
+    print("Advertencia: HADOOP_HOME no está configurado (Requerido en Windows para PySpark).")
+
 
 import logging
 from pyspark.sql import SparkSession
