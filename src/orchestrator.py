@@ -16,13 +16,8 @@ import pandas as pd
 
 from src.config.settings import settings, get_settings
 from src.config.vigencia_config import VIGENCIA_CONFIG, get_fuentes_auto_update, is_update_due
-from src.ingesta.extract import (
-    extract_dane_cnpv,
-    extract_dane_cenu,
-    extract_secop_ii,
-    extract_terridata,
-    extract_dane_geoportal,
-)
+# La ingesta vía API fue eliminada. Toda extracción se realiza desde CSV locales
+# a través de src/ingesta/bronze/main_ingestion.py (run_bronze.py).
 from src.transformacion.gold.schema.create_dimensions import (
     create_dim_municipio,
     create_dim_tiempo,
@@ -223,19 +218,14 @@ class PipelineOrchestrator:
             logger.info(f"Extrayendo {fuente}...")
             
             try:
-                if fuente == 'dane_cnpv':
-                    resultado = extract_dane_cnpv(vigencia='2025')
-                elif fuente == 'dane_cenu':
-                    resultado = extract_dane_cenu(tamano_empresa='micro', vigencia='2024')
-                elif fuente == 'secop_ii':
-                    resultado = extract_secop_ii()
-                elif fuente == 'terridata':
-                    resultado = extract_terridata(vigencia='2024')
-                elif fuente == 'dane_geoportal':
-                    resultado = extract_dane_geoportal(nivel='municipal')
-                else:
-                    logger.warning(f"Fuente desconocida: {fuente}")
-                    continue
+                # La ingesta vía API fue eliminada. Toda extracción se realiza desde
+                # CSV locales a través de src/ingesta/bronze/main_ingestion.py.
+                # Para ingestar, ejecutar: python src/ingesta/run_bronze.py
+                logger.warning(
+                    f"Fuente '{fuente}': extracción vía API eliminada. "
+                    "Use run_bronze.py para ingestar desde CSV locales."
+                )
+                resultado = {"status": "skipped", "fuente": fuente}
                 
                 resultados[fuente] = resultado
                 logger.info(f"  Estado: {resultado.get('status', 'unknown')}")
