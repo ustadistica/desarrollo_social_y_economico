@@ -132,12 +132,27 @@ def clean_secop_i_data(bronze_path: Path, silver_path: Path, settings: Any) -> D
             divipola = df[c_muni_cod].astype(str).str.strip().str.zfill(5)
         else:
             from src.utils.divipola_catalog import DIVIPOLA_COMPLETO
-            lookup = {}
-            for k, info in DIVIPOLA_COMPLETO.items():
-                lookup[(_norm(info["nombre_departamento"]), _norm(info["nombre_municipio"]))] = k
+            lookup = {
+                (_norm(info["nombre_departamento"]), _norm(info["nombre_municipio"])): k
+                for k, info in DIVIPOLA_COMPLETO.items()
+            }
+            # SECOP I usa "BOGOTa D.C." tanto para dpto como mpio
+            # _norm("BOGOTa D.C.") = "BOGOTA_D_C", pero catalogo tiene dpto "BOGOTA" y mpio "BOGOTA_D_C"
+            _DEPT_ALIASES = {
+                "BOGOTA_D_C": "BOGOTA",
+                "DISTRITO_CAPITAL_DE_BOGOTA": "BOGOTA",
+                "DC": "BOGOTA",
+            }
+            _MUNI_ALIASES = {
+                "BOGOTA": "BOGOTA_D_C",
+            }
+            def _resolve(d: str, m: str):
+                d_n = _DEPT_ALIASES.get(d, d)
+                m_n = _MUNI_ALIASES.get(m, m)
+                return lookup.get((d_n, m_n)) or lookup.get((d_n, m)) or lookup.get((d, m_n)) or lookup.get((d, m))
             dp = df[c_dpto_txt].fillna("").map(_norm)
             mp = df[c_muni_txt].fillna("").map(_norm)
-            divipola = pd.Series([lookup.get((d, m)) for d, m in zip(dp, mp)], index=df.index)
+            divipola = pd.Series([_resolve(d, m) for d, m in zip(dp, mp)], index=df.index)
 
         txn = pd.DataFrame({
             "id_contrato": df[c_uid].astype(str).str.strip(),

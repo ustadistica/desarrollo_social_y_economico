@@ -46,17 +46,6 @@ class Settings:
         # Directorio de Modelo Estrella Parquet (PySpark)
         self.MODELO_ESTRELLA_PATH = self.PROJECT_ROOT / "modelo_estrella_pyspark"
         
-        # Configuración de APIs - datos.gov.co
-        # API Token para SODA API (datos.gov.co) — configurar en .env
-        self.SODA_APP_TOKEN: Optional[str] = os.getenv("SODA_APP_TOKEN")
-        self.SODA_APP_SECRET: Optional[str] = os.getenv("SODA_APP_SECRET")
-        self.DANE_API_KEY: Optional[str] = os.getenv("DANE_API_KEY")
-        
-        # Parámetros de extracción SECOP y CNPV
-        self.SECOP_BATCH_SIZE = int(os.getenv("SECOP_BATCH_SIZE", "50000"))
-        self.SECOP_MAX_RETRIES = int(os.getenv("SECOP_MAX_RETRIES", "3"))
-        self.SECOP_BASE_URL = "https://www.datos.gov.co/resource/287p-52ht.json"
-        
         # Leemos las rutas de los CSV locales desde variables de entorno (o .env)
         # Por defecto, si el compañero de equipo no tiene el .env listado,
         # buscamos en una carpeta Datos relativa al proyecto.
