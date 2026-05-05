@@ -91,10 +91,10 @@ def _build_fact_contratacion(silver_path: Path, out_file: Path) -> Dict[str, Any
     Fallback (conservador): union de los dos agregados, sumando procesos
     y montos, con MAX() sobre proveedores_unicos.
     """
-    txn_i = silver_path / "secop_i" / "silver_secop_i_transaccional.parquet"
-    txn_ii = silver_path / "secop_ii" / "silver_secop_ii_transaccional.parquet"
-    agg_i = silver_path / "secop_i" / "silver_secop_i_agregado.parquet"
-    agg_ii = silver_path / "secop_ii" / "silver_secop_ii_agregado.parquet"
+    txn_i = silver_path / "silver_secop_i_transaccional.parquet"
+    txn_ii = silver_path / "silver_secop_ii_transaccional.parquet"
+    agg_i = silver_path / "silver_secop_i_agregado.parquet"
+    agg_ii = silver_path / "silver_secop_ii_agregado.parquet"
 
     # ---------- Camino preferido: transaccionales ----------
     txn_frames: List[pd.DataFrame] = []
@@ -189,14 +189,14 @@ def build_facts(silver_path: Path, gold_path: Path) -> Dict[str, Any]:
 
     # 1. Fact Demografia (Proyecciones Censales - depto-anio)
     results["fact_demografia"] = _fact_simple(
-        silver_path / "proyecciones" / "silver_proyecciones_agregado.parquet",
+        silver_path / "silver_proyecciones_agregado.parquet",
         gold_path / "fact_demografia_municipio_anio.parquet",
         {"poblacion_total_proyectada": "float64"},
     )
 
     # 2. Fact Micronegocios (EMICRON - depto-anio expandido)
     results["fact_micronegocios"] = _fact_simple(
-        silver_path / "emicron" / "silver_emicron_agregado.parquet",
+        silver_path / "silver_emicron_agregado.parquet",
         gold_path / "fact_micronegocios_municipio_anio.parquet",
         {"volumen_micronegocios_exp": "float64"},
     )
@@ -209,7 +209,7 @@ def build_facts(silver_path: Path, gold_path: Path) -> Dict[str, Any]:
 
     # 4. Fact Censo (CNPV 2018 - municipio)
     results["fact_censo"] = _fact_simple(
-        silver_path / "cnpv" / "silver_cnpv_agregado.parquet",
+        silver_path / "silver_cnpv_agregado.parquet",
         gold_path / "fact_censo_municipio.parquet",
         {"poblacion_total_base": "float64"},
     )

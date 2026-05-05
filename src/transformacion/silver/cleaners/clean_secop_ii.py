@@ -83,7 +83,9 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
         c_divi = _pick(idx, ("DIVIPOLA_KEY_MAPPED", "DIVIPOLA_KEY"))
         c_muni_txt = _pick(idx, ("CIUDAD", "MUNICIPIO", "MUNICIPIO_ENTIDAD"))
         c_dpto_txt = _pick(idx, ("DEPARTAMENTO", "DEPARTAMENTO_ENTIDAD"))
-        c_muni_cod = _pick(idx, ("CODIGO_DE_LA_ENTIDAD", "CODIGO_ENTIDAD", "COD_MUNICIPIO"))
+        # SECOP II: "Codigo Entidad" es NIT de la entidad (ej. "701.174.138"), NO código DIVIPOLA.
+        # Solo buscar columnas que realmente contengan código de municipio.
+        c_muni_cod = _pick(idx, ("COD_MUNICIPIO", "CODIGO_MUNICIPIO", "DIVIPOLA"))
 
         if not c_divi and not c_muni_cod and not (c_muni_txt and c_dpto_txt):
             return {
@@ -120,9 +122,23 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
                 (_norm(info["nombre_departamento"]), _norm(info["nombre_municipio"])): k
                 for k, info in DIVIPOLA_COMPLETO.items()
             }
+            # Alias extra: variantes de nombres de dpto/mpio usadas en SECOP II
+            _DEPT_ALIASES = {
+                "DISTRITO_CAPITAL_DE_BOGOTA": "BOGOTA",
+                "DC": "BOGOTA",
+                "BOGOTA_D_C": "BOGOTA",
+            }
+            _MUNI_ALIASES = {
+                "BOGOTA": "BOGOTA_D_C",
+                "BOGOTA_D_C_": "BOGOTA_D_C",
+            }
+            def _resolve(d: str, m: str):
+                d_n = _DEPT_ALIASES.get(d, d)
+                m_n = _MUNI_ALIASES.get(m, m)
+                return lookup.get((d_n, m_n)) or lookup.get((d_n, m)) or lookup.get((d, m_n)) or lookup.get((d, m))
             dp = df[c_dpto_txt].fillna("").map(_norm)
             mp = df[c_muni_txt].fillna("").map(_norm)
-            divipola = pd.Series([lookup.get((d, m)) for d, m in zip(dp, mp)], index=df.index)
+            divipola = pd.Series([_resolve(d, m) for d, m in zip(dp, mp)], index=df.index)
 
         txn = pd.DataFrame({
             "id_contrato": df[c_uid].astype(str).str.strip(),
