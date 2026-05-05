@@ -6,10 +6,15 @@ from pyspark.sql import SparkSession
 # Forzar codificación en salidas de Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
+from dotenv import load_dotenv
+load_dotenv() # Cargar variables del .env
+
 # [VITAL PARA WINDOWS - ENTORNOS AISLADOS DE HADOOP Y JAVA]
-os.environ['JAVA_HOME'] = r'C:\Program Files\ojdkbuild\java-11-openjdk-11.0.15-1'
-os.environ['HADOOP_HOME'] = r'C:\hadoop'
-os.environ['PATH'] = os.environ['HADOOP_HOME'] + r'\bin;' + os.environ.get('PATH', '')
+if not os.environ.get('JAVA_HOME'):
+    print("Advertencia: JAVA_HOME no está configurado.")
+if not os.environ.get('HADOOP_HOME') and os.name == 'nt':
+    print("Advertencia: HADOOP_HOME no está configurado (Requerido en Windows).")
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)

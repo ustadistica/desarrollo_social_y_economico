@@ -4,10 +4,15 @@ from pyspark.sql import SparkSession
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Entorno JVM
-os.environ['JAVA_HOME'] = r'C:\Program Files\ojdkbuild\java-11-openjdk-11.0.15-1'
-os.environ['HADOOP_HOME'] = r'C:\hadoop'
-os.environ['PATH'] = os.environ['HADOOP_HOME'] + r'\bin;' + os.environ.get('PATH', '')
+from dotenv import load_dotenv
+load_dotenv() # Cargar variables del .env si existen
+
+# Verificamos si JAVA_HOME / HADOOP_HOME están configurados
+if not os.environ.get('JAVA_HOME'):
+    print("Advertencia: JAVA_HOME no está configurado.")
+if not os.environ.get('HADOOP_HOME') and os.name == 'nt':
+    print("Advertencia: HADOOP_HOME no está configurado (Requerido en Windows).")
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
@@ -16,7 +21,8 @@ print("=======================================================")
 print(" PROCESAMIENTO PYSPARK - DATASET MASIVO SECOP (9.6 GB)")
 print("=======================================================")
 
-csv_masivo = r"C:\Users\Daniela\Downloads\Datos (1)\Datos\SECOP_II_-_Contratos_Electrónicos_20260322.csv"
+from src.config.settings import settings
+csv_masivo = str(settings.SECOP_CSV_PATH)
 out_dir = os.path.join(project_root, 'datos', 'HHI_MASIVO_RESULTADOS.csv')
 
 print("[1/3] Iniciando SparkSession con optimización de RAM (6GB Driver)...")
