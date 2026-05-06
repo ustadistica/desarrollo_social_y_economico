@@ -1,0 +1,111 @@
+Metadata-Version: 2.4
+Name: socioeco_pipeline
+Version: 1.1.0
+Summary: Pipeline orquestador (Medallion Architecture) para el análisis de desarrollo social y económico en Colombia.
+Author: Data Engineering Team — Consultorio de Estadística USTA
+License: MIT
+Requires-Python: <3.13,>=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: pyarrow>=10.0.0
+Requires-Dist: duckdb>=0.9.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: requests>=2.28.0
+Requires-Dist: chardet>=5.0.0
+Requires-Dist: pandera>=0.18.0
+Provides-Extra: spark
+Requires-Dist: pyspark>=3.5.0; extra == "spark"
+Provides-Extra: geo
+Requires-Dist: geopandas>=0.14.0; extra == "geo"
+Requires-Dist: shapely>=2.0.0; extra == "geo"
+Requires-Dist: libpysal>=4.8.0; extra == "geo"
+Requires-Dist: esda>=2.5.0; extra == "geo"
+Requires-Dist: mapclassify>=2.7.0; extra == "geo"
+Provides-Extra: dashboard
+Requires-Dist: streamlit>=1.30.0; extra == "dashboard"
+Provides-Extra: sql
+Requires-Dist: pandasql>=0.7.3; extra == "sql"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: black>=22.0.0; extra == "dev"
+Requires-Dist: flake8>=6.0.0; extra == "dev"
+Provides-Extra: all
+Requires-Dist: socioeco_pipeline[dashboard,dev,geo,spark,sql]; extra == "all"
+
+# Sinergia Socioeconómica - Plataforma Analítica (Medallion Architecture)
+
+Repositorio para el análisis de Sinergia Socioeconómica, Gasto Público (SECOP) y Micronegocios (EMICRON). Pipeline ETL bajo **Arquitectura Medallion (Bronze → Silver → Gold)** con DuckDB y PyArrow.
+
+## Arquitectura
+
+1. **BRONZE** (`datos/bronze/`): Ingesta cruda a Parquet con hash y timestamp.
+2. **SILVER** (`datos/plata/`): Estandarización DIVIPOLA, agregación a grano `Municipio-Año`.
+3. **GOLD** (`datos/oro/`): Modelo estrella (dimensiones + hechos) y Datamart OBT.
+
+## Output Final para Analistas
+
+No es necesario re-ejecutar el pipeline. El resultado consumible está en:
+
+```
+datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+```
+
+Los reportes de calidad están en `documentacion_tecnica/`.
+
+---
+
+## Instalación
+
+```bash
+# 1. Clonar el repositorio
+git clone <url> && cd desarrollo_social_y_economico
+
+# 2. Crear entorno virtual (recomendado)
+python -m venv .venv
+.venv\Scripts\activate    # Windows
+source .venv/bin/activate  # Mac/Linux
+
+# 3. Instalar el paquete
+pip install -e .
+
+# 4. Configurar datos externos
+cp .env.example .env
+# Editar .env en la raíz con las rutas a tus datos locales
+```
+
+## Ejecución del Pipeline (Flujo Oficial)
+
+```bash
+# Pipeline completo (Bronze → Silver → Gold)
+socioeco-pipeline
+
+# Capas individuales
+socioeco-bronze
+socioeco-silver
+socioeco-gold
+
+# Alternativa via módulo Python
+python -m src.cli all
+python -m src.cli bronze
+python -m src.cli silver
+python -m src.cli gold
+```
+
+> **Nota:** También puedes ejecutar el orquestador principal mediante `python src/main.py`.
+
+## Dependencias
+
+Gestionadas en `pyproject.toml`. Instalación con `pip install -e .`. No se usa Poetry.
+
+## Documentación Técnica
+
+| Documento | Contenido |
+|-----------|-----------|
+| `INSTALACION_LIMPIA.md` | Guía detallada de instalación paso a paso |
+| `CLI_USAGE.md` | Referencia completa de comandos del CLI |
+| `IMPORT_CONVENTION.md` | Convención de imports del proyecto |
+| `pipeline/INSTRUCCIONES_EQUIPO.md` | Guía de configuración de datos para el equipo |
+| `documentacion_tecnica/DICCIONARIO_GOLD.md` | Diccionario de variables del modelo Gold |

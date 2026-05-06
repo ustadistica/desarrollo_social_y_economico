@@ -1,0 +1,5 @@
+[console_scripts]
+socioeco-bronze = src.cli:cmd_bronze
+socioeco-gold = src.cli:cmd_gold
+socioeco-pipeline = src.cli:cmd_all
+socioeco-silver = src.cli:cmd_silver
