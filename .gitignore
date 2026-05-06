@@ -29,3 +29,6 @@ spark-warehouse/
 .qwen/
 .vscode/
 .idea/
+
+.venv/
+scratch/

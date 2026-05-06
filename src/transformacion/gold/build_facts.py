@@ -110,6 +110,9 @@ def _build_fact_contratacion(silver_path: Path, out_file: Path) -> Dict[str, Any
         tx = tx.dropna(subset=["divipola_key", "anio_key"])
         tx["nit_contratista"] = tx["nit_contratista"].astype(str)
 
+        # Deduplicar por id_contrato para no inflar la sumatoria de inversion_total_monto
+        tx = tx.drop_duplicates(subset=["id_contrato"], keep="first")
+
         # Un NIT en ambas plataformas cuenta UNA sola vez (COUNT DISTINCT global)
         df = (
             tx.groupby(["divipola_key", "anio_key"], as_index=False)

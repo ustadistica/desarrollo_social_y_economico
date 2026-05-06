@@ -113,7 +113,7 @@ def extract_terridata(
     if output_path is None:
         from src.config.settings import settings
         ingestion_date = datetime.now().strftime('%Y-%m-%d')
-        output_path = Path(settings.get('paths', {}).get('bronze', 'datos/bronze'))
+        output_path = Path(settings.get('paths', {}).get('bronze', 'data/bronze'))
         output_path = output_path / 'terridata' / f'ingestion_date={ingestion_date}'
 
     output_path = Path(output_path)

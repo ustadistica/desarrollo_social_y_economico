@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 # Configurar logger
 logger = logging.getLogger(__name__)
 
-# Cargar variables del .env
-env_path = Path(__file__).parent.parent / '.env'
+# Cargar variables del .env (desde la raíz del proyecto)
+env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
 
@@ -29,11 +29,11 @@ class Settings:
         self.PIPELINE_ROOT = Path(__file__).parent.parent
         
         # Rutas de capas de datos
-        self.DATOS_ROOT = self.PROJECT_ROOT / "datos"
+        self.DATOS_ROOT = self.PROJECT_ROOT / "data"
         # Capas de datos (Medallion Architecture)
         self.BRONZE_PATH = self.DATOS_ROOT / "bronze"
-        self.SILVER_PATH = self.DATOS_ROOT / "plata"
-        self.GOLD_PATH = self.DATOS_ROOT / "oro"
+        self.SILVER_PATH = self.DATOS_ROOT / "silver"
+        self.GOLD_PATH = self.DATOS_ROOT / "gold"
         
         # Alias legacy para compatibilidad
         self.PLATA_PATH = self.SILVER_PATH

@@ -24,7 +24,7 @@ def main():
     run_script("src/transformacion/run_gold.py")
     
     logger.info("============================================================")
-    logger.info("✅ PIPELINE COMPLETADO EXITOSAMENTE. DATA LISTA EN 'datos/gold/marts/latest/'")
+    logger.info("✅ PIPELINE COMPLETADO EXITOSAMENTE. DATA LISTA EN 'data/gold/marts/latest/'")
     logger.info("============================================================")
 
 if __name__ == "__main__":

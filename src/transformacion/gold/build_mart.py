@@ -137,15 +137,11 @@ def build_datamart(gold_path: Path) -> Dict[str, Any]:
     df = df.merge(f_cnt, on=["divipola_key", "anio_key"], how="left")
 
     # fact_micronegocios y fact_demografia son de granularidad DEPARTAMENTAL
-    # (divipola XX000). Para municipios se hace lookup por código departamental
-    # (primeros 2 dígitos + "000") de modo que cada municipio hereda los
-    # indicadores del agregado departamental al que pertenece.
-    df["_div_depto"] = df["divipola_key"].str[:2] + "000"
-    f_mic_join = f_mic.rename(columns={"divipola_key": "_div_depto"})
-    f_dem_join = f_dem.rename(columns={"divipola_key": "_div_depto"})
-    df = df.merge(f_mic_join, on=["_div_depto", "anio_key"], how="left")
-    df = df.merge(f_dem_join, on=["_div_depto", "anio_key"], how="left")
-    df = df.drop(columns=["_div_depto"])
+    # (divipola XX000). Se unen por divipola_key para que SOLAMENTE el
+    # agregado departamental contenga este valor, evitando duplicar 
+    # poblaciones y negocios en cada municipio.
+    df = df.merge(f_mic, on=["divipola_key", "anio_key"], how="left")
+    df = df.merge(f_dem, on=["divipola_key", "anio_key"], how="left")
 
     # CNPV: broadcast por divipola (censo es snapshot 2018)
     cen_broadcast = f_cen[["divipola_key", "poblacion_total_base"]].rename(
@@ -161,7 +157,9 @@ def build_datamart(gold_path: Path) -> Dict[str, Any]:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     # ---- Indicadores derivados ----
-    pob = df["poblacion_total_proyectada"].where(df["poblacion_total_proyectada"] > 0)
+    # Usar poblacion_censo_2018 para municipios, y fallback a poblacion_total_proyectada para agregados
+    pob = df["poblacion_censo_2018"].where(df["poblacion_censo_2018"] > 0, df["poblacion_total_proyectada"])
+    pob = pob.where(pob > 0)
     df["indicador_inversion_per_capita"] = df["inversion_total_monto"] / pob
     df["indicador_densidad_micronegocios"] = df["volumen_micronegocios_exp"] / pob
 
