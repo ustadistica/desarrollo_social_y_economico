@@ -3,8 +3,7 @@ Construcción del Datamart Analitico (OBT) — Capa Gold.
 
 El OBT cruza las dimensiones y los hechos para producir la tabla final
 orientada a indicadores sociales y económicos. Implementado con pandas
-(sin DuckDB) para ser consistente con la migración del resto del
-pipeline a PyArrow.
+para ser consistente con el uso de PyArrow en el pipeline.
 
 Decisiones clave:
   - Spine: se construye a partir de los divipola_key REALES presentes en

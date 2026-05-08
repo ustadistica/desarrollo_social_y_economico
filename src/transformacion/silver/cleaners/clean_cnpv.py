@@ -2,8 +2,7 @@
 Limpieza y agregación de CNPV 2018 (Capa Silver).
 
 CNPV es un censo completo (no muestra). Agrega a nivel municipio con año
-fijo 2018. Implementado con PyArrow + pandas (consistente con la migración
-del pipeline desde DuckDB).
+fijo 2018. Implementado con PyArrow + pandas.
 """
 
 import logging

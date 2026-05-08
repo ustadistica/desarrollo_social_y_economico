@@ -1,6 +1,6 @@
 # Sinergia Socioeconómica - Plataforma Analítica (Medallion Architecture)
 
-Repositorio para el análisis de Sinergia Socioeconómica, Gasto Público (SECOP) y Micronegocios (EMICRON). Pipeline ETL bajo **Arquitectura Medallion (Bronze → Silver → Gold)** con DuckDB y PyArrow.
+Repositorio para el análisis de Sinergia Socioeconómica, Gasto Público (SECOP) y Micronegocios (EMICRON). Pipeline ETL bajo **Arquitectura Medallion (Bronze → Silver → Gold)** con Pandas y PyArrow.
 
 ## Arquitectura
 

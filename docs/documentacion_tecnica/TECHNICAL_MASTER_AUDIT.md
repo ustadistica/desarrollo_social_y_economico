@@ -15,7 +15,7 @@ Se identificó la transición exitosa de un pipeline legacy (`src/`) hacia una a
 ---
 
 ## 2. Auditoría de Infraestructura y Dependencias
-- **Dependencies:** Gestionadas vía `pyproject.toml`. DuckDB y PyArrow son los pilares de procesamiento.
+- **Dependencies:** Gestionadas vía `pyproject.toml`. Pandas y PyArrow son los pilares de procesamiento.
 - **Docker:** El entorno está preparado para ser contenedorizado, aislando las dependencias del sistema operativo.
 - **Makefile:** Actualizado para apuntar a los nuevos comandos de la CLI (`socioeco-pipeline`).
 

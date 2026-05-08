@@ -40,7 +40,7 @@ Este informe documenta el diseño e implementación técnica de las tres fases c
 - Compresión nativa (Snappy): 10:1 en datos CSV típicos
 - Lectura selectiva de columnas (i/o eficiente)
 - Esquema tipado (previene errores tipo-datos en pipeline)
-- Estándar industry (compatible con Spark, DuckDB, pandas)
+- Estándar industry (compatible con Spark, pandas)
 - Auditable: Metadatos embebidos
 
 ### 1.2 Fuentes y Estrategia de Ingesta por Fuente
