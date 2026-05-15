@@ -259,7 +259,7 @@ Estos puntos **deben mencionarse siempre** que se cite cualquier número de la s
 | **Gini de monto absoluto** | No es una medida de equidad. Mide concentración geográfica del registro contable. Su valor estructuralmente alto (~0.9) se debe a (i) escala demográfica y (ii) imputación de los contratos del orden nacional al municipio de la entidad contratante. |
 | **Gini de monto absoluto con Bogotá** | Bogotá D.C. (`11001`) acumula 34–55 % del monto anual por ser sede del orden nacional, no por concentración real de gasto en su territorio. |
 | **Gini de monto absoluto sin Bogotá** | Es un *proxy* para "orden territorial". No es un filtro estricto: entidades nacionales con sede fuera de Bogotá (sedes regionales, gobernaciones) siguen incluidas. El filtro estricto requeriría incorporar `orden_entidad` desde bronze al silver de SECOP. |
-| **Gini IPC** | Métrica principal. Reportarla como "Gini de inversión per cápita". Aclarar que el denominador es `poblacion_censo_2018`, no proyección DANE anual (limitación del mart actual — ver §4.6). |
+| **Gini IPC** | Métrica principal. Reportarla como "Gini de inversión per cápita". Aclarar que el denominador es `poblacion_censo_2018`, no proyección DANE anual (limitación del mart actual — ver sección 4.6 "Limitaciones residuales sin corregir en esta iteración"). |
 | **Cualquier IPC year-over-year** | Las variaciones interanuales del IPC reflejan variaciones del numerador (monto), no del denominador. La población usada es la del censo 2018 propagada como constante. |
 
 ### 4.6 Limitaciones residuales sin corregir en esta iteración

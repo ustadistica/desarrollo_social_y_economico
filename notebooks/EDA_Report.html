@@ -8983,7 +8983,7 @@ Estadísticas de inversión per cápita por año:
 <h2 id="6.-Concentraci%C3%B3n-geogr%C3%A1fica-del-gasto-y-equidad-territorial-(Gini)">6. Concentración geográfica del gasto y equidad territorial (Gini)<a class="anchor-link" href="#6.-Concentraci%C3%B3n-geogr%C3%A1fica-del-gasto-y-equidad-territorial-(Gini)">¶</a></h2><p>Se reportan <strong>dos coeficientes de Gini</strong> que responden preguntas distintas:</p>
 <p><strong>(a) Gini de monto absoluto — concentración geográfica.</strong> Cuánta proporción del monto contratado se concentra en pocos municipios. Por construcción es muy alto porque las ciudades grandes tienen volúmenes naturalmente mayores y porque el SECOP imputa los contratos al <em>municipio de la entidad contratante</em>, no al de ejecución: las entidades del <strong>orden nacional</strong> (ministerios, ICBF, Invías, FFMM, etc.) tienen sede en Bogotá y por ello <code>divipola_key = 11001</code> concentra &gt;50 % del monto en cada año. Para aislar ese sesgo se reporta también la serie <strong>excluyendo a Bogotá D.C.</strong></p>
 <p><strong>(b) Gini de inversión per cápita — equidad territorial.</strong> Métrica principal para la pregunta de equidad. Neutraliza el tamaño poblacional: mide si el peso público está distribuido equitativamente <em>por habitante</em>. Es la única de las dos que se puede interpretar como un indicador de política pública.</p>
-<p><strong>Decisiones metodológicas aplicadas (ver <code>docs/EDA_corrección.md</code> §4):</strong></p>
+<p><strong>Decisiones metodológicas aplicadas (ver la sección 4 "Corrección de la sección 6 — Coeficiente de Gini" de <code>docs/EDA_corrección.md</code>):</strong></p>
 <ul>
 <li>El Gini se calcula sólo sobre municipios con monto &gt; 0 (no se imputan ceros con <code>fillna(0)</code>, porque mezclan "no contrató" con "no aparece en SECOP" e inflan artificialmente el indicador).</li>
 <li>El filtro de "orden nacional" se aproxima excluyendo a Bogotá D.C. (<code>11001</code>). Es un <em>workaround</em>: el ideal sería filtrar por <code>orden_entidad ∈ {Territorial}</code>, pero esa columna no se conserva en la capa silver (<code>silver_secop_*_transaccional.parquet</code> sólo trae <code>id_contrato, divipola_key, anio_key, fecha_firma, valor_del_contrato, nit_contratista</code>).</li>
@@ -10733,7 +10733,7 @@ Monto contratado con contexto temporal:
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  NBI / IPM   : No disponible en el pipeline actual'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'                (requiere cruce cnpv_1viv + cnpv_2hog + cnpv_5per — pendiente implementar en silver)'</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Notas metodológicas (ver docs/EDA_corrección.md §4):'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Notas metodológicas (ver la sección 4 de docs/EDA_corrección.md):'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'  - El Gini de monto absoluto NO mide equidad; mide concentración geográfica.'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'    Es estructuralmente alto (&gt;0.85) porque las ciudades grandes tienen volúmenes'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'    naturalmente mayores y porque SECOP atribuye los contratos al municipio de la'</span><span class="p">)</span>
@@ -10904,7 +10904,7 @@ Fuentes de datos:
   NBI / IPM   : No disponible en el pipeline actual
                 (requiere cruce cnpv_1viv + cnpv_2hog + cnpv_5per — pendiente implementar en silver)
 
-Notas metodológicas (ver docs/EDA_corrección.md §4):
+Notas metodológicas (ver la sección 4 de docs/EDA_corrección.md):
   - El Gini de monto absoluto NO mide equidad; mide concentración geográfica.
     Es estructuralmente alto (&gt;0.85) porque las ciudades grandes tienen volúmenes
     naturalmente mayores y porque SECOP atribuye los contratos al municipio de la
