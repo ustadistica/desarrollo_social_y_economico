@@ -10,7 +10,7 @@ Notebook adicional revisado: `notebooks/EDA_Express.ipynb`
 
 El EDA fue corregido porque dependía de variables (NBI e IPM) que **nunca formaron parte del pipeline de ingesta del proyecto**. La ingesta actual procesa cuatro fuentes — SECOP I, SECOP II, CNPV 2018 y EMICRON — y produce una capa Gold (`mart_desarrollo_social_economico_municipio_anio.parquet`) que contiene indicadores de contratación pública, población y micronegocios. NBI e IPM no son producidos por ningún paso de ese pipeline, ni en Bronze, ni en Silver, ni en Gold.
 
-No está claro por qué el EDA fue diseñado con dependencia en NBI/IPM si esos indicadores nunca estuvieron contemplados en la ingesta. Una posibilidad es que el notebook se escribiera en paralelo a un proceso de enriquecimiento externo que luego no se completó o que quedó fuera del pipeline definitivo. Lo que sí es evidente es que **el EDA nunca pudo haber funcionado completamente tal como estaba escrito**: desde el primer día que se ejecutó sobre el pipeline actual, NBI e IPM habrían llegado como 100 % nulos, desactivando seis de sus dieciséis secciones sin ningún error visible.
+No está claro por qué el EDA fue diseñado con dependencia en NBI/IPM si esos indicadores nunca estuvieron contemplados en la ingesta. Lo que sí es evidente es que **el EDA nunca pudo haber funcionado completamente tal como estaba escrito**: desde el primer día que se ejecutó sobre el pipeline actual, NBI e IPM habrían llegado como 100 % nulos, desactivando seis de sus dieciséis secciones sin ningún error visible.
 
 La corrección elimina esa dependencia huérfana y reemplaza NBI/IPM por `indicador_inversion_per_capita`, un indicador que sí produce el pipeline y que permite análisis de equidad territorial coherentes con los datos disponibles.
 
@@ -67,26 +67,18 @@ dfs.append(df_part[["divipola_key"]])  # solo columna geográfica
 
 Para recalcular NBI/IPM se requeriría un cruce complejo entre `cnpv_1viv_raw` (materiales/servicios de vivienda), `cnpv_2hog_raw` (hacinamiento) y `cnpv_5per_raw` (asistencia escolar), que aún no está implementado en el pipeline.
 
-### 1.4 Estado de EDA_Express.ipynb
+### 1.4 Limpieza de notebooks obsoletos (2026-05-15)
 
-Este notebook es **completamente inoperativo**. Referencia 10 archivos Excel de un modelo de estrella antiguo que no existe en el repositorio:
+Se eliminaron del repositorio los siguientes archivos que referenciaban arquitecturas previas y eran inoperativos sobre el pipeline Medallion:
 
-```python
-archivos = {
-    "categoria":    "D_Categoria.xlsx",   # no existe
-    "entidad":      "D_Entidad.xlsx",      # no existe
-    "modalidad":    "D_Modalidad.xlsx",    # no existe
-    "proveedor":    "D_Proveedor.xlsx",    # no existe
-    "tiempo":       "D_Tiempo.xlsx",       # no existe
-    "tipocontrato": "D_TipoContrato.xlsx", # no existe
-    "ubientidad":   "D_UbiEntidad.xlsx",   # no existe
-    "ubiproveedor": "D_UbiProveedor.xlsx", # no existe
-    "fact_1":       "F_Proceso_parte1.xlsx", # no existe
-    "fact_2":       "F_Proceso_parte2.xlsx", # no existe
-}
-```
+| Archivo eliminado | Motivo |
+|---|---|
+| `notebooks/EDA_Express.ipynb` | Referenciaba 10 archivos Excel (`D_Categoria.xlsx`, `D_Entidad.xlsx`, `F_Proceso_parte1.xlsx`, etc.) de un modelo de estrella antiguo que no existe en el repositorio. Completamente inoperativo. |
+| `notebooks/indicadores.ipynb` | Archivo vacío (0 bytes). |
+| `notebooks/jupyter.log` | Log temporal de Jupyter. |
+| `notebooks/.ipynb_checkpoints/EDA_SECOP_DANE_Gold_2018_2024-checkpoint.ipynb` | Checkpoint *stale* anterior a la corrección de la sección 6 del Gini. |
 
-Corresponde a la arquitectura de datos más antigua del proyecto (antes del pipeline Medallion). No se corrigió en esta iteración; está pendiente reescribirlo o eliminarlo.
+El análisis exploratorio se concentra ahora en `notebooks/EDA_SECOP_DANE_Gold_2018_2024.ipynb` (única fuente vigente).
 
 ---
 
@@ -182,6 +174,95 @@ Tras la corrección, el EDA tiene **16 secciones** todas activas y funcionales:
 
 ### Limitaciones conocidas
 
-- **NBI / IPM** siguen sin estar disponibles. Las secciones 4, 7, 9, 10, 11 y 13 usan IPC como proxy operativo, no como indicador de pobreza. Si en el futuro se implementa el cálculo de NBI en la capa silver, basta con actualizar `SPRINT2_PATH` y restaurar `COL_NBI` en esas secciones.
-- **EDA_Express.ipynb** permanece inoperativo. Requiere reescritura completa apuntando al Gold Mart.
+- **NBI / IPM** siguen sin estar disponibles. Las secciones 4, 7, 9, 10, 11 y 13 usan IPC como proxy operativo, no como indicador de pobreza. Si en el futuro se implementa el cálculo de NBI en la capa silver, basta con restaurar `COL_NBI` en esas secciones.
 - La carga de etnia (~30 s) puede optimizarse incorporando `etnia_indigena_pct` y `etnia_afro_pct` directamente al Gold Mart en `src/transformacion/gold/build_mart.py`.
+
+---
+
+## 4. Corrección de la sección 6 — Coeficiente de Gini (2026-05-15)
+
+### 4.1 Qué estaba pasando
+
+La sección 6 reportaba un único coeficiente de Gini con valores **0.89–0.93** en todos los años. El valor llamaba la atención por estar pegado al techo (1 = desigualdad máxima) y casi no variar año a año. La hipótesis inicial fue un error en la fórmula o en el cruce; tras la revisión se descartaron ambas.
+
+**La fórmula del Gini (`gini(array)` en `cell-0003`) es matemáticamente correcta.** Es la formulación equivalente
+
+```
+G = ( (n+1) − 2·Σ_{i=1..n} cumsum(a)_i / Σa ) / n
+```
+
+que se reduce algebraicamente a la expresión estándar `(2·Σ(i·a_i))/(n·S) − (n+1)/n` cuando el array está ordenado. No es el cálculo el que falla, son los **insumos y la interpretación**.
+
+### 4.2 Por qué fallaba
+
+Tres problemas concurrentes producían el valor inflado:
+
+**(1) Sesgo de atribución geográfica del SECOP — causa principal.**
+En `src/transformacion/silver/cleaners/clean_secop_i.py` y `clean_secop_ii.py`, la columna `divipola_key` se construye a partir del *Municipio / Departamento de la Entidad contratante*, **no del lugar de ejecución del contrato**. Todas las entidades del **orden nacional** (ministerios, Presidencia, ICBF, Invías, Fuerzas Militares, agencias) tienen su sede en Bogotá y, por tanto, sus contratos quedan imputados a `divipola_key = 11001`. Evidencia:
+
+| Año | Cuota de Bogotá en el monto total |
+|---|---|
+| 2018 | 50.2 % |
+| 2019 | 42.6 % |
+| 2020 | 41.2 % |
+| 2021 | 47.2 % |
+| 2022 | 54.3 % |
+| 2023 | 38.0 % |
+| 2024 | 34.1 % |
+
+Esa concentración no es desigualdad municipal — es un artefacto del modelo de datos del SECOP. El silver de SECOP **no preserva** la columna `orden_entidad` que permitiría filtrar nacionales vs. territoriales (la transaccional sólo trae `id_contrato`, `divipola_key`, `anio_key`, `fecha_firma`, `valor_del_contrato`, `nit_contratista`, `_fuente_origen`).
+
+**(2) Indicador inapropiado para la pregunta.**
+El título original decía *"desigualdad en distribución de contratos"* pero se calculaba sobre **monto absoluto**, no contratos ni inversión por habitante. Un Gini sobre montos absolutos entre municipios siempre dará valores > 0.85 — Bogotá tiene 8 M de habitantes y Mitú 30 k; la dispersión refleja escala demográfica, no inequidad de política pública. La métrica apropiada para "equidad territorial" es el Gini de **inversión per cápita** (monto / población).
+
+**(3) Imputación incorrecta de ceros con `fillna(0)`.**
+El cálculo original era:
+
+```python
+gini(df_mun.loc[df_mun[COL_AÑO] == a, COL_MONTO].fillna(0))
+```
+
+Esto mezcla dos casos distintos: municipios que no contrataron y municipios que no reportaron al SECOP. Al inyectar ceros artificiales se infla el Gini.
+
+### 4.3 Qué se hizo para corregirlo
+
+La sección 6 fue reescrita por completo (`cell-0014` markdown y `cell-0015` code) y el resumen ejecutivo (`cell-0035`) ahora reporta las nuevas series:
+
+1. **Se cambió la métrica principal a Gini de inversión per cápita** (`monto / poblacion_censo_2018`). Es la única de las dos que puede interpretarse como indicador de política pública.
+2. **El Gini sobre monto absoluto se conserva pero renombrado** como *"Concentración geográfica del gasto"* (no como "desigualdad"), para dejar claro que es una métrica descriptiva, no de equidad.
+3. **Se reportan ambas series con y sin Bogotá D.C.** (`divipola_key = 11001`) como *workaround* para aproximar el filtro de orden nacional. Es un parche explícito: el filtro correcto sería por `orden_entidad ∈ {Territorial}`, pendiente de propagarse desde bronze a silver.
+4. **Se eliminó el `fillna(0)`**: el Gini se calcula sólo sobre municipios con `monto > 0`. Se reporta también el número de municipios usados cada año (`n_muni_con_monto>0`).
+5. **Cambio cosmético:** título de la sección y de los gráficos actualizado a *"Concentración geográfica del gasto y equidad territorial (Gini)"*.
+
+### 4.4 Valores nuevos y por qué ahora son creíbles
+
+| Año | Gini monto abs. | Gini monto sin Bogotá | **Gini IPC (equidad)** | Gini IPC sin Bogotá |
+|---:|---:|---:|---:|---:|
+| 2018 | 0.917 | 0.837 | **0.447** | 0.445 |
+| 2019 | 0.911 | 0.847 | **0.522** | 0.521 |
+| 2020 | 0.926 | 0.876 | **0.590** | 0.589 |
+| 2021 | 0.916 | 0.844 | **0.470** | 0.468 |
+| 2022 | 0.921 | 0.830 | **0.509** | 0.507 |
+| 2023 | 0.887 | 0.820 | **0.525** | 0.525 |
+| 2024 | 0.912 | 0.869 | **0.516** | 0.515 |
+
+La métrica principal (**Gini IPC**) se mueve en el rango **0.45 – 0.59**, que es consistente con la literatura sobre desigualdad territorial del gasto público en Colombia y con la naturaleza del país (alta dispersión real, pero no extrema). Que el Gini IPC con y sin Bogotá sean prácticamente iguales (≤ 0.002 de diferencia) confirma que el problema previo era el **monto absoluto**, no la composición municipal: cuando se neutraliza el tamaño poblacional con la división por habitantes, Bogotá deja de dominar el agregado.
+
+El pico en 2020 (0.59) es coherente con el efecto de la pandemia: gasto público concentrado en pocos municipios para emergencia sanitaria. El descenso en 2021 (0.47) refleja la fase de reactivación y transferencias del programa de Ingreso Solidario.
+
+### 4.5 Casos donde se requiere aclaración explícita en cualquier reporte
+
+Estos puntos **deben mencionarse siempre** que se cite cualquier número de la sección 6 de este EDA:
+
+| Métrica | Aclaración obligatoria |
+|---|---|
+| **Gini de monto absoluto** | No es una medida de equidad. Mide concentración geográfica del registro contable. Su valor estructuralmente alto (~0.9) se debe a (i) escala demográfica y (ii) imputación de los contratos del orden nacional al municipio de la entidad contratante. |
+| **Gini de monto absoluto con Bogotá** | Bogotá D.C. (`11001`) acumula 34–55 % del monto anual por ser sede del orden nacional, no por concentración real de gasto en su territorio. |
+| **Gini de monto absoluto sin Bogotá** | Es un *proxy* para "orden territorial". No es un filtro estricto: entidades nacionales con sede fuera de Bogotá (sedes regionales, gobernaciones) siguen incluidas. El filtro estricto requeriría incorporar `orden_entidad` desde bronze al silver de SECOP. |
+| **Gini IPC** | Métrica principal. Reportarla como "Gini de inversión per cápita". Aclarar que el denominador es `poblacion_censo_2018`, no proyección DANE anual (limitación del mart actual — ver §4.6). |
+| **Cualquier IPC year-over-year** | Las variaciones interanuales del IPC reflejan variaciones del numerador (monto), no del denominador. La población usada es la del censo 2018 propagada como constante. |
+
+### 4.6 Limitaciones residuales sin corregir en esta iteración
+
+- **Población constante 2018.** `poblacion_total_proyectada` está en 0 para los 1.122 municipios del mart porque `silver_proyecciones_agregado.parquet` se produce a granularidad **departamento-año**, no municipio-año, y no se propaga al mart municipal. El cálculo cae al fallback `poblacion_censo_2018`, perdiendo la dinámica demográfica del periodo. Corregirlo requiere reescribir `_fact_simple` para proyecciones o crear un cleaner municipal específico — pendiente para una iteración posterior.
+- **Filtro estricto por orden de la entidad.** Ideal: filtrar contratos por `orden_entidad ∈ {Territorial}`. Workaround actual: excluir Bogotá. Para implementarlo bien hay que preservar la columna `orden` desde el bronze de SECOP a través de los cleaners (`clean_secop_i.py`, `clean_secop_ii.py`) y la transaccional silver. Pendiente.

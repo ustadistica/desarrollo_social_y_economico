@@ -233,11 +233,12 @@ desarrollo_social_y_economico/
 
 - Evolución temporal de la contratación (monto, contratos, variación %).
 - Distribución del monto por año (escala log) y por departamento.
-- Vulnerabilidad social: NBI e IPM (CNPV 2018).
-- Concentración por municipio (Top 15 anual) y Gini.
-- Relación inversión-vulnerabilidad (dispersión NBI vs log Monto).
-- Cuadrantes de abandono relativo y municipios críticos.
-- Ticket promedio por cuartil de NBI.
+- Distribución de la inversión per cápita por año (proxy de equidad territorial; reemplaza NBI/IPM, no disponibles en el pipeline actual).
+- Concentración por municipio (Top 15 anual).
+- **Coeficiente de Gini — dos métricas:** (a) concentración geográfica del monto absoluto, reportada con y sin Bogotá D.C. para aislar el sesgo de imputación al municipio de la entidad contratante; (b) Gini de inversión per cápita como métrica principal de equidad. Ver `docs/EDA_corrección.md` §4 para la metodología completa.
+- Inversión per cápita vs tamaño poblacional (dispersión + correlación).
+- Cuadrantes de abandono relativo y municipios críticos (sobre IPC).
+- Ticket promedio por cuartil de inversión per cápita.
 - Matrices de correlación anuales.
 - Micronegocios y economía popular (EMICRON).
 - Contexto histórico (pandemia, ciclos electorales).
