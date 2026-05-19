@@ -1,6 +1,8 @@
 # INFORME TÉCNICO EXHAUSTIVO — INGESTA Y CRUCE DE DATOS
 ## Observatorio de Desarrollo Socioeconómico
-**Fecha:** 2026-05-11 | **Propósito:** Transferencia de conocimiento completa
+**Fecha:** 2026-05-19 | **Propósito:** Transferencia de conocimiento completa
+**Rama activa:** `feature/migracion-duckdb-a-pyspark`
+**Última ejecución del datamart:** `data/gold/marts/version_20260507/`
 
 ---
 
@@ -43,11 +45,20 @@ Se eligió la **Medallion Architecture** (también llamada Multi-Hop) por las si
 | Estandarización geográfica | Catálogo DIVIPOLA embebido | Sin dependencia de API externa para mapear municipios |
 | Detección de encoding | `chardet` | EMICRON viene en latin-1, SECOP en UTF-8; detección automática |
 | Orquestación | Python puro (clases Orchestrator) | Sin dependencia de Airflow/Prefect para un proyecto académico |
-| Modelo Estrella | pandas + PyArrow | PySpark se eliminó por complejidad innecesaria; pandas es suficiente para ~2M filas |
+| Modelo Estrella / Silver / Gold | pandas + PyArrow | Suficiente para ~2M filas; sin JVM requerido |
+| Motor analítico opcional | PySpark con auto-fallback a PyArrow | Probado en la rama `feature/migracion-duckdb-a-pyspark` (ver §3.1) |
 
 > **Nota importante**: Toda la ingesta se realiza exclusivamente desde **archivos CSV locales** descargados manualmente. No se utiliza ninguna API en el pipeline.
 
-> **Nota histórica**: El pipeline originalmente usaba PySpark y DuckDB. Ambas dependencias fueron eliminadas porque añadían complejidad sin beneficio real dado el volumen de datos del proyecto. El pipeline actual usa exclusivamente pandas + PyArrow.
+### 3.1 Motor analítico dual (PySpark ↔ PyArrow)
+
+A partir de la rama `feature/migracion-duckdb-a-pyspark` se reintrodujo PySpark como motor analítico **opcional** mediante el módulo `src/utils/spark_session.py`. La estrategia es:
+
+1. Al primer uso, el módulo intenta crear una `SparkSession` real (master `local[*]`, 4 GB driver/executor) y ejecuta un cálculo mínimo de prueba.
+2. Si la prueba pasa, queda `_engine = "pyspark"` y todas las funciones públicas (`query_parquet`, `write_parquet`) usan Spark.
+3. Si la prueba falla (Java ausente, Python 3.12 + Windows, etc.), cae automáticamente a `_engine = "pyarrow"` usando `pyarrow.dataset` + pandas. La API externa no cambia.
+
+> **Nota histórica**: El pipeline arrancó con PySpark, se simplificó a pandas + DuckDB, después se purgó DuckDB para quedarse solo con pandas + PyArrow, y ahora se está evaluando la reintroducción de PySpark como motor escalable opcional sin perder la portabilidad ofrecida por PyArrow. Las capas Bronze, Silver y Gold actuales siguen funcionando 100 % con pandas + PyArrow; PySpark es aditivo.
 
 ---
 
@@ -219,6 +230,21 @@ Se pueden sobreescribir todas las rutas vía `.env`:
 - `SECOP_CSV_PATH`, `SECOP_I_CSV_PATH`, `CNPV_ROOT_DIR`, `EMICRON_CSV_PATH`, `PROYECCIONES_CENSO_PATH`
 - `NULL_THRESHOLD_WARNING` (0.5), `NULL_THRESHOLD_BLOCKING` (0.9)
 
+### 6.3 Validador previo de configuración
+
+Antes de correr Bronze por primera vez, se recomienda ejecutar el validador:
+
+```bash
+python -m src.validadores.verificar_datos
+```
+
+Este script (introducido el 2026-04-23 para resolver un problema recurrente de compañeros que clonaban el repo y la ingesta fallaba con *"No hay datos de SECOP II en Bronze"*) verifica que:
+- Exista la carpeta `Datos/` en alguna de las tres ubicaciones candidatas (proyecto, padre, abuelo).
+- Estén presentes los subdirectorios `CENSO 2018 dep/`, `EMICRON 2024/`.
+- Existan los CSV de SECOP I, SECOP II y proyecciones (`PPED-AreaDep-2018-2050_VP.csv`).
+
+Si el validador imprime ✅ en todas las fuentes, la ingesta debería pasar. Si imprime ⚠ con el listado de rutas que se buscaron, hay que mover la carpeta `Datos/` o configurar el `.env` con rutas explícitas. Documentación complementaria: `INSTALACION_COMPAÑEROS.md` y `SETUP_DATOS.md`.
+
 ---
 
 ## 7. CAPA SILVER — LIMPIEZA, ESTANDARIZACIÓN Y AGREGACIÓN
@@ -295,28 +321,66 @@ Define el esquema `PLATA_SCHEMA` con tipos PyArrow optimizados:
 
 ### 7.4 Cleaner SECOP I (`clean_secop_i.py`)
 
-1. Lee `data/bronze/secop_i/secop_i_raw.parquet`
-2. Renombra columnas del CSV original a nombres estandarizados
-3. **Mapeo geográfico por nombre**: `Municipio de Obtencion` → `divipola_key`
-4. Convierte montos de string a float64
-5. Extrae NIT del contratista y lo preserva como string (para COUNT DISTINCT en Gold)
-6. Agrega a grano Municipio-Año: suma montos, cuenta procesos, cuenta NITs distintos
-7. Genera `silver_secop_i_transaccional.parquet` y `silver_secop_i_agregado.parquet`
+1. Lee todos los Parquet bajo `data/bronze/secop_i/` (recursivo)
+2. Resuelve nombres reales de columnas (con tildes/espacios) vía un índice normalizado (`_norm`): `UID`, `Fecha de Firma del Contrato`, `Cuantia Contrato`, `Identificacion del Contratista`, `Departamento Entidad`, `Municipio Entidad`.
+3. **Resolución de `divipola_key` por prioridad**:
+   1. `DIVIPOLA_KEY_MAPPED` (si el parser de Bronze ya lo inyectó)
+   2. `CODIGO_MUNICIPIO_ENTIDAD`
+   3. Lookup `(_norm(departamento), _norm(municipio))` contra `DIVIPOLA_COMPLETO` con alias para Bogotá D.C. (`BOGOTA_D_C` ↔ `BOGOTA`).
+4. Limpieza monetaria colombiana: `"$1.234.567,89"` → `1234567` eliminando todo carácter no dígito.
+5. Extrae el año desde `fecha_firma` (intenta `DD/MM/YYYY` y luego ISO).
+6. NIT de contratista: solo dígitos, preservado como string para `COUNT(DISTINCT)` en Gold.
+7. **Filtros de calidad** antes de agregar:
+   - `divipola_key` debe coincidir con `^\d{5}$`
+   - `anio_key` no nulo y en rango `[2018, 2030]`
+8. Genera dos salidas:
+   - `silver_secop_i_transaccional.parquet` (grano contrato; insumo del cruce sin doble conteo)
+   - `silver_secop_i_agregado.parquet` (grano municipio-año con `COUNT(DISTINCT nit)` intra-plataforma)
 
 ### 7.5 Cleaner SECOP II (`clean_secop_ii.py`)
 
-Proceso similar pero más simple porque SECOP II ya tiene `divipola_municipio`:
-1. Lee `data/bronze/secop_ii/secop_ii_raw.parquet`
-2. Estandariza DIVIPOLA con `zfill(5)`
-3. Convierte montos y fechas
-4. Genera transaccional y agregado análogos
+Mismo patrón que SECOP I, pero con nombres reales propios:
+1. Lee `data/bronze/secop_ii/*.parquet` recursivamente.
+2. Resuelve `id_contrato` (`ID Contrato` / `Referencia del Contrato`), `Fecha de Firma`, `Valor del Contrato`, `Documento Proveedor`.
+3. **`divipola_key` por prioridad**: `DIVIPOLA_KEY_MAPPED` → `COD_MUNICIPIO` / `CODIGO_MUNICIPIO` → lookup `Departamento + Ciudad` con alias para Bogotá. Importante: `Codigo Entidad` **no** es DIVIPOLA en SECOP II (es NIT de la entidad), por eso no se usa.
+4. Aplica los mismos filtros de calidad (`^\d{5}$`, año 2018–2030) y produce transaccional + agregado análogos a SECOP I.
+
+### 7.5.1 ⚠ Sesgo crítico de atribución geográfica (SECOP I y II)
+
+> **Advertencia obligatoria al usar cualquier indicador territorial derivado de SECOP**
+
+En los cleaners de SECOP I y SECOP II, la `divipola_key` se construye a partir de `Municipio Entidad + Departamento Entidad` (o sus equivalentes en SECOP II `Ciudad + Departamento`). Es decir: **el municipio del contrato es el municipio de la entidad contratante, no el municipio donde se ejecuta el contrato**.
+
+Esto produce un sesgo sistemático en favor de Bogotá D.C. (`11001`):
+
+| Año | Cuota de Bogotá en monto total |
+|---:|---:|
+| 2018 | 50.2 % |
+| 2019 | 42.6 % |
+| 2020 | 41.2 % |
+| 2021 | 47.2 % |
+| 2022 | 54.3 % |
+| 2023 | 38.0 % |
+| 2024 | 34.1 % |
+
+La razón es estructural: todas las entidades del **orden nacional** (Presidencia, ministerios, ICBF, Invías, Fuerzas Militares, agencias) tienen sede en Bogotá; SECOP registra `Municipio Entidad = "BOGOTA D.C."` para todas ellas y, en consecuencia, esos contratos quedan imputados a `11001` aunque se ejecuten en cualquier otro municipio del país.
+
+**Workaround actual**: en análisis EDA se reportan series "con Bogotá" y "sin Bogotá" para aproximar el filtro de orden territorial. No es un filtro estricto — entidades nacionales con sedes regionales siguen incluidas.
+
+**Solución correcta (pendiente)**: preservar la columna `orden_entidad` desde el Bronze hasta la transaccional Silver, y filtrar por `orden_entidad ∈ {Territorial}`. El esquema transaccional actual solo conserva `id_contrato, divipola_key, anio_key, fecha_firma, valor_del_contrato, nit_contratista, _fuente_origen`, por lo que esta corrección requiere modificar los cleaners SECOP. Ver §15 ítem 6.
 
 ### 7.6 Cleaner CNPV (`clean_cnpv.py`)
 
-1. Lee los Parquet por módulo (viviendas, hogares, personas, MGN)
-2. Extrae indicadores clave: IPM total, IPM por dimensión, NBI, déficit habitacional
-3. Agrega a nivel municipio (DIVIPOLA): medias ponderadas de indicadores
-4. Genera `silver_cnpv_agregado.parquet` con `anio_key = 2018` (dato censal fijo)
+**Corrección 2026-05-19** — Versiones anteriores de este informe afirmaban que el cleaner extraía IPM total, IPM por dimensión, NBI y déficit habitacional. La revisión del código (verificada en el documento [EDA_corrección.md](docs/EDA_corrección.md) §1.3) confirma que **eso no es cierto**:
+
+1. Lee los Parquet por módulo (viviendas, hogares, personas, MGN).
+2. **Solo emite la columna geográfica `divipola_key`** (`clean_cnpv.py:76`: `dfs.append(df_part[["divipola_key"]])`).
+3. Agrega a nivel municipio como conteo de población base (`poblacion_total_base`) — equivale a `COUNT(*)` sobre el módulo de personas por municipio.
+4. Genera `silver_cnpv_agregado.parquet` con `anio_key = 2018`.
+
+**Consecuencia**: NBI, IPM y déficit habitacional **no existen en el pipeline Medallion actual**. Cualquier análisis que los requiera (p. ej. cuadrantes pobreza × inversión en EDAs) debe o bien usar `indicador_inversion_per_capita` como proxy de equidad, o bien implementar un cleaner CNPV extendido que cruce `cnpv_1viv_raw` (materiales/servicios de vivienda), `cnpv_2hog_raw` (hacinamiento) y `cnpv_5per_raw` (asistencia escolar) para reconstruir los componentes del IPM. Pendiente.
+
+**Etnia (no implementada en Silver)**: La columna `PA1_GRP_ETNIC` del Bronze (`cnpv_5per_raw.parquet`, ~2.4 GB) sí permite reconstruir `etnia_indigena_pct` y `etnia_afro_pct` por municipio. El EDA principal lo hace on-the-fly (~30 s con lectura columnar). Si se requiere de forma recurrente, debería incorporarse al mart desde Silver para evitar recomputar.
 
 ### 7.7 Cleaner EMICRON (`clean_emicron.py`)
 
@@ -332,6 +396,8 @@ Proceso similar pero más simple porque SECOP II ya tiene `divipola_municipio`:
 2. Identifica columnas de año y población
 3. Genera serie temporal de población por departamento
 4. Escribe `silver_proyecciones_agregado.parquet`
+
+> **Limitación crítica para el cruce**: la salida queda a granularidad **departamento-año** (códigos `XX000`). No se desagrega a municipio. Por eso `fact_demografia_municipio_anio.parquet` solo tiene valores no nulos en los códigos `XX000`, y en el mart la columna `poblacion_total_proyectada` queda en 0 para los 1.122 municipios reales. El cálculo de `indicador_inversion_per_capita` cae al fallback `poblacion_censo_2018` (constante 2018) y por tanto **no captura la dinámica demográfica 2018–2024**. Para corregirlo hace falta o un cleaner municipal de proyecciones DANE, o reescribir `_fact_simple` para que abra el código departamental a sus municipios usando el censo 2018 como peso. Pendiente.
 
 ---
 
@@ -366,11 +432,17 @@ El cruce une datos de **contratación pública** (SECOP I + II) con **indicadore
 
 SECOP I y SECOP II son plataformas distintas de Colombia Compra Eficiente, pero un mismo proveedor (NIT) puede tener contratos en ambas. Si simplemente se suman los `proveedores_unicos` de cada plataforma, se infla el conteo.
 
-**Solución implementada (camino preferido)**: UNION de las dos tablas transaccionales, deduplicación por `id_contrato`, y `COUNT(DISTINCT nit)` global — un NIT en ambas plataformas cuenta UNA vez.
+**Solución implementada (camino preferido — verificado en código)**:
+1. Concatena `silver_secop_i_transaccional.parquet` y `silver_secop_ii_transaccional.parquet`.
+2. Descarta filas con `divipola_key` o `anio_key` nulos.
+3. **Deduplica por `id_contrato`** (`drop_duplicates(keep="first")`) para que un contrato presente en ambas plataformas no infle `inversion_total_monto`.
+4. Agrupa por `(divipola_key, anio_key)` con:
+   - `cantidad_procesos_adjudicados = nunique(id_contrato)`
+   - `inversion_total_monto = sum(valor_del_contrato)`
+   - `proveedores_unicos = nunique(nit_contratista)` — un NIT en ambas plataformas cuenta UNA sola vez.
+5. Marca la fila con `_metodo_proveedores = "COUNT(DISTINCT nit) sobre union transaccional (correcto)"` y `_fuentes` con los archivos consumidos.
 
-**Fallback (si no hay transaccionales)**: Usar `MAX` en lugar de `SUM` para `proveedores_unicos` como estimador conservador.
-
-Se documenta explícitamente en el Parquet con la columna `_metodo_proveedores`.
+**Fallback (si no hay transaccionales)**: UNION de los dos `*_agregado.parquet`, suma de procesos e inversión, pero `MAX(proveedores_unicos)` como estimador conservador. Se marca con `_metodo_proveedores = "MAX sobre agregados (fallback conservador, NO correcto)"` y devuelve `status = "success_fallback"` para que el reporte Gold lo distinga.
 
 ### 8.5 Restricciones legales del cruce
 
@@ -419,17 +491,26 @@ python -m src.cli gold
 
 El OBT (One Big Table) es la tabla final que consume el analista o el dashboard. Se construye así:
 
-1. **Spine**: Solo pares `(divipola_key, anio_key)` que aparecen en al menos un fact real (no producto cartesiano)
-2. **Join dim_territorio**: LEFT JOIN por `divipola_key`
-3. **Join dim_tiempo**: LEFT JOIN por `anio_key`
-4. **Join fact_contratacion**: LEFT JOIN por `(divipola_key, anio_key)`
-5. **Join fact_micronegocios**: LEFT JOIN por `(divipola_key, anio_key)` — solo aplica para agregados departamentales
-6. **Join fact_demografia**: LEFT JOIN por `(divipola_key, anio_key)` — igual, departamental
-7. **Broadcast fact_censo**: LEFT JOIN solo por `divipola_key` (sin año) para propagar dato censal 2018
+1. **Spine**: Solo pares `(divipola_key, anio_key)` que aparecen en al menos un fact real (no producto cartesiano), **acotados al rango de `dim_tiempo` (2018–2029)**. Aunque `fact_demografia` trae proyecciones DANE hasta 2050, el mart analítico solo materializa el horizonte de la dimensión tiempo.
+2. **Inclusión adicional de filas solo-censo**: Para todos los municipios con datos en `fact_censo` se cruzan con los años existentes en el spine (o con todos los años de `dim_tiempo` si el spine está vacío). Esto evita perder municipios donde solo hay dato censal pero no contratación.
+3. **Join dim_territorio**: LEFT JOIN por `divipola_key`
+4. **Join dim_tiempo**: LEFT JOIN por `anio_key`
+5. **Join fact_contratacion**: LEFT JOIN por `(divipola_key, anio_key)`
+6. **Join fact_micronegocios**: LEFT JOIN por `(divipola_key, anio_key)` — solo aplica para códigos `XX000`
+7. **Join fact_demografia**: LEFT JOIN por `(divipola_key, anio_key)` — igual, departamental
+8. **Broadcast fact_censo**: LEFT JOIN solo por `divipola_key` (sin año) para propagar dato censal 2018 como `poblacion_censo_2018`.
 
-**Indicadores derivados**: `indicador_inversion_per_capita` y `indicador_densidad_micronegocios`, calculados con población censal como denominador.
+**Indicadores derivados**:
+- `indicador_inversion_per_capita = inversion_total_monto / poblacion`
+- `indicador_densidad_micronegocios = volumen_micronegocios_exp / poblacion`
 
-**Versionamiento**: Se genera una copia versionada (`marts/version_YYYYMMDD/`) y una copia `latest/` que siempre apunta a la última ejecución.
+Donde `poblacion` toma `poblacion_censo_2018` cuando es > 0 y cae a `poblacion_total_proyectada` en otros casos (sirve a agregados departamentales que no tienen censo municipal).
+
+**Flags de trazabilidad** (nuevos respecto a la versión 2026-05-11 del informe):
+- `tiene_componente_social = (poblacion_total_proyectada > 0) | (poblacion_censo_2018 > 0)`
+- `tiene_componente_economico = (inversion_total_monto > 0) | (volumen_micronegocios_exp > 0)`
+
+**Versionamiento**: Se genera una copia versionada (`marts/version_YYYYMMDD/`) y una copia `latest/`. Estado actual: la última versión persistida es `marts/version_20260507/` y `marts/latest/` apunta al mismo Parquet.
 
 ---
 
@@ -481,8 +562,8 @@ python src/transformacion/run_gold.py
 
 | Decisión | Alternativa rechazada | Razón del rechazo |
 |----------|----------------------|-------------------|
-| Pandas + PyArrow | PySpark | PySpark requiere Java; overhead innecesario para <10M filas |
-| Pandas + PyArrow | DuckDB | Dependencia extra sin beneficio claro; eliminado en refactorización |
+| Pandas + PyArrow (default) | DuckDB | Dependencia extra sin beneficio claro; eliminado en refactorización previa |
+| PySpark opcional con fallback PyArrow | "PySpark obligatorio" o "PySpark eliminado del todo" | El módulo `spark_session.py` permite escalar si hay JVM, sin romper entornos sin Java — la decisión final sobre adoptarlo se toma al cerrar la rama `feature/migracion-duckdb-a-pyspark` |
 | CSV local (descarga manual) | Conexión directa a APIs en tiempo real | Dependencia de red, límites de registros, no reproducible offline |
 | Parquet con Snappy | CSV plano | Compresión 5x, tipos preservados, lectura columnar |
 | Catálogo DIVIPOLA embebido | Geocodificación vía API | Reproducibilidad offline, velocidad, determinismo |
@@ -534,7 +615,9 @@ src/
 └── utils/
     ├── divipola_catalog.py          # Catálogo DIVIPOLA completo (1,102 municipios)
     ├── ciiu_unspsc_mapping.py       # Mapeo CIIU ↔ UNSPSC
-    └── expansion_factors.py         # Factores de expansión DANE
+    ├── expansion_factors.py         # Factores de expansión DANE
+    ├── spark_session.py             # Motor dual PySpark↔PyArrow (rama feature/migracion-duckdb-a-pyspark)
+    └── logger.py                    # Logger del pipeline
 ```
 
 ---
@@ -578,9 +661,40 @@ gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
 
 2. **EMICRON es muestral, no censal**: Los datos de micronegocios son estimaciones expandidas con factores de expansión, no conteos exactos. La granularidad es departamental, no municipal.
 
-3. **SECOP I sin DIVIPOLA directo**: El mapeo por nombre de municipio puede fallar para nombres ambiguos o con errores de digitación en el CSV original.
+3. **SECOP I sin DIVIPOLA directo**: El mapeo por nombre de municipio puede fallar para nombres ambiguos o con errores de digitación en el CSV original. Los alias actuales solo cubren Bogotá D.C.; otros homónimos (p. ej. "Armenia") se resuelven correctamente porque el lookup requiere `(departamento, municipio)` y no solo nombre suelto.
+
+4. **`main_gold.py` es un stub**: El archivo `src/transformacion/gold/main_gold.py` y los módulos `gold/schema/` y `gold/marts/create_datamart_*.py` están vacíos / esqueleto. La capa Gold real corre a través del CLI (`src/cli.py::_run_gold`) que invoca directamente `build_dim_tiempo`, `build_dim_territorio`, `build_facts` y `build_datamart`. Si se ejecuta `python src/transformacion/gold/main_gold.py --all` no produce datamarts; usar siempre `python -m src.cli gold` o `python src/transformacion/run_gold.py`.
+
+5. **PySpark requiere Java**: El motor dual (§3.1) intenta crear `SparkSession` con `local[*]` y 4 GB driver/executor. En entornos sin JDK, la prueba falla automáticamente y el código sigue con PyArrow. Para forzar PyArrow se puede simplemente no instalar `pyspark` en el entorno.
+
+6. **Sesgo crítico de atribución geográfica en SECOP** *(documentado a fondo en §7.5.1)*: `divipola_key` representa el municipio de la *entidad contratante*, no del lugar de ejecución. Bogotá D.C. acumula 34–55 % del monto anual por ser sede del orden nacional. Cualquier estadístico territorial sobre SECOP (Gini, ranking municipal, inversión por departamento) debe reportarse con la aclaración explícita, y preferiblemente con doble serie *con/sin Bogotá* hasta que se preserve `orden_entidad` desde Bronze.
+
+7. **CNPV no calcula NBI ni IPM** *(documentado en §7.6)*: Versiones previas del informe afirmaban que el cleaner producía estos indicadores; la verificación de código demostró que `clean_cnpv.py` solo emite `divipola_key`. Cualquier análisis o tablero que dependa de NBI/IPM municipal debe (a) ser deshabilitado, (b) usar `indicador_inversion_per_capita` como proxy de equidad, o (c) esperar a la implementación de un cleaner CNPV extendido.
+
+8. **`poblacion_total_proyectada` es 0 en el mart municipal** *(documentado en §7.8)*: las proyecciones DANE están a granularidad departamento-año y no se reparten a municipios. Los indicadores per cápita usan `poblacion_censo_2018` propagada como constante; las variaciones interanuales reflejan el numerador (monto), no cambios demográficos. Aclarar siempre en cualquier reporte que cite IPC.
+
+9. **`fillna(0)` en agregados de contratación**: el cleaner SECOP genera `proveedores_unicos = 0` para municipios sin contratos en un año dado. Al calcular medidas de concentración (Gini, HHI) hay que filtrar `monto > 0` antes, o se inflan artificialmente los indicadores de desigualdad (problema histórico de la sección 6 del EDA — ver [EDA_corrección.md](docs/EDA_corrección.md) §4.2).
+
+---
+
+## 16. CAMBIOS DESDE LA VERSIÓN 2026-05-11 DEL INFORME
+
+| Área | Cambio |
+|------|--------|
+| Motor analítico | Se reintrodujo PySpark como motor opcional con auto-fallback a PyArrow en `src/utils/spark_session.py` (rama `feature/migracion-duckdb-a-pyspark`) |
+| Cleaners SECOP | Se documentaron filtros de calidad explícitos (`divipola_key` regex `^\d{5}$`, `anio_key` ∈ [2018, 2030]) y la resolución de DIVIPOLA por prioridad (mapped → cod_municipio → lookup con alias Bogotá) |
+| **Corrección §7.6 CNPV** | Se quitó la afirmación falsa de que el cleaner CNPV extrae IPM/NBI/déficit. En realidad solo emite `divipola_key` y un conteo poblacional; los indicadores de pobreza no existen en el pipeline (verificado en código y documentado en [EDA_corrección.md](docs/EDA_corrección.md)) |
+| **Nuevo §7.5.1 — Sesgo SECOP** | `divipola_key` representa la sede de la entidad contratante, no la ejecución. Bogotá acumula 34–55 % del monto anual. Documentado con la cuota anual y el workaround "sin Bogotá" |
+| **§7.8 Proyecciones** | Documentado explícitamente que la granularidad es depto-año y que `poblacion_total_proyectada` queda en 0 en el mart municipal; los IPC del mart usan censo 2018 constante |
+| **§6.3 Validador** | Documentado `python -m src.validadores.verificar_datos` (introducido el 2026-04-23 — ver [DIAGNOSTICO_PROBLEMA_INGESTA.md](docs/DIAGNOSTICO_PROBLEMA_INGESTA.md)) para chequear la carpeta `Datos/` antes de correr Bronze |
+| Datamart | Se documentaron los flags `tiene_componente_social` / `tiene_componente_economico` y la inclusión adicional de filas solo-censo en el spine |
+| Versionado del mart | Última versión persistida: `data/gold/marts/version_20260507/` |
+| Stub Gold | `main_gold.py`, `gold/schema/*` y `gold/marts/create_datamart_*.py` son esqueletos; el flujo real corre por `src/cli.py::_run_gold` |
+| EDA / HHI / Gini | Limpieza de scripts legacy de HHI y reescritura completa del cálculo de Gini (sec. 6 del EDA): se pasó de Gini sobre monto absoluto (0.89–0.93, inflado) a Gini sobre inversión per cápita (0.45–0.59, plausible). Se eliminó `fillna(0)` y se reporta `n_muni_con_monto>0`. Ver [EDA_corrección.md](docs/EDA_corrección.md) §4 |
+| **Nuevos ítems §15 (6–9)** | Sesgo SECOP, ausencia de NBI/IPM, población constante 2018, y `fillna(0)` en agregados — cuatro caveats obligatorios para cualquier indicador territorial derivado del mart |
 
 ---
 
 **Fin del informe técnico.**
-*Generado el 2026-05-11 basado en revisión exhaustiva del código fuente del repositorio.*
+*Actualizado el 2026-05-19 basado en revisión del repositorio en la rama `feature/migracion-duckdb-a-pyspark`.*
+*Versión anterior: 2026-05-11.*
