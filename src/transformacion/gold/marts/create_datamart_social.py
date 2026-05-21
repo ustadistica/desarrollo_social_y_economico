@@ -430,7 +430,7 @@ def _calcular_morans_i_simplificado(datos: pd.DataFrame) -> Dict[str, Any]:
         # Intentar cargar geometría desde el geoportal
         try:
             from pathlib import Path
-            geo_path = Path('datos/bronze/dane_geoportal')
+            geo_path = Path('data/bronze/dane_geoportal')
             shapefiles = list(geo_path.rglob('*.shp'))
             if shapefiles:
                 gdf = gpd.read_file(shapefiles[0])

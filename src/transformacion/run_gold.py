@@ -69,7 +69,7 @@ def main():
         if 'archivo_latest' in mart:
              f.write(f"- **Ruta Simbólica Entregada al Analista:** `{mart['archivo_latest']}`\n")
              
-    logger.info("Modelo Estrella inyectado. La data se encuentra en 'datos/gold'.")
+    logger.info("Modelo Estrella inyectado. La data se encuentra en 'data/gold'.")
 
 if __name__ == "__main__":
     main()

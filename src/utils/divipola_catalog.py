@@ -14,7 +14,7 @@ import os
 logger = logging.getLogger(__name__)
 
 # Intentar cargar desde CSV oficial si existe
-CSV_PATH = Path("datos/bronze/divipola/divipola_oficial.csv")
+CSV_PATH = Path("data/bronze/divipola/divipola_oficial.csv")
 
 def _cargar_catalogo_csv() -> Dict[str, Dict[str, Any]]:
     catalogo = {}
@@ -956,13 +956,13 @@ def cargar_divipola_desde_csv(archivo_csv: Path) -> Dict[str, Dict[str, Any]]:
         
         catalogo = {}
         for _, row in df.iterrows():
-            divipola = str(row['DIVIPOLA']).zfill(5)
+            divipola = str(row['divipola_municipio']).zfill(5)
             catalogo[divipola] = {
-                'nombre_municipio': row['NOMBRE_MUNICIPIO'],
-                'nombre_departamento': row['NOMBRE_DEPARTAMENTO'],
-                'divipola_departamento': str(row['DIVIPOLA_DEPARTAMENTO']).zfill(2),
-                'region': row.get('REGION', 'Sin región'),
-                'categoria': row.get('CATEGORIA', 'Sin categoría'),
+                'nombre_municipio': row['nombre_municipio'],
+                'nombre_departamento': row['nombre_departamento'],
+                'divipola_departamento': divipola[:2],
+                'region': row.get('region', 'Sin región'),
+                'categoria': row.get('categoria', 'Sin categoría'),
             }
         
         logger.info(f"Catálogo DIVIPOLA cargado: {len(catalogo)} municipios")

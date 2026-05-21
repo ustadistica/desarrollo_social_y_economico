@@ -200,12 +200,12 @@ def _write_parquet_spark(df: pd.DataFrame, output_path: str, partition_cols=None
 
 def _query_parquet_pyarrow(parquet_path: str, sql_query: str) -> pd.DataFrame:
     """
-    Ejecuta consulta SQL sobre un Parquet usando PyArrow + DuckDB-free SQL.
+    Ejecuta consulta SQL sobre un Parquet usando PyArrow.
 
     Estrategia: lee el Parquet con PyArrow Dataset (out-of-core),
     lo convierte en un DataFrame de Pandas, y usa pandas para
     las agregaciones que el SQL describe. Para mantener la
-    compatibilidad SQL sin depender de DuckDB, usamos
+    compatibilidad SQL de forma nativa, usamos
     pandas.DataFrame.query + groupby según el patrón detectado.
 
     Para consultas más complejas, se puede agregar `sqldf` en el futuro.

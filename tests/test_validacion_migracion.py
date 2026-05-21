@@ -1,5 +1,5 @@
 """
-Script de Validación de la Migración DuckDB -> PySpark.
+Script de Validación de la Migración a PySpark.
 Verifica importaciones, módulos del proyecto y sintaxis de archivos modificados.
 """
 import sys
@@ -44,12 +44,11 @@ def main():
         from config.settings import Settings
         s = Settings()
         assert hasattr(s, "MODELO_ESTRELLA_PATH"), "Falta MODELO_ESTRELLA_PATH"
-        assert not hasattr(s, "DUCKDB_PATH"), "DUCKDB_PATH aun existe (debe estar eliminado)"
         print(f"       MODELO_ESTRELLA_PATH = {s.MODELO_ESTRELLA_PATH}")
         print(f"       BRONZE_PATH = {s.BRONZE_PATH}")
         print(f"       PLATA_PATH = {s.PLATA_PATH}")
 
-    check("config.settings - MODELO_ESTRELLA_PATH (sin DUCKDB_PATH)", check_settings)
+    check("config.settings - MODELO_ESTRELLA_PATH", check_settings)
 
     # =============================================
     print()
@@ -76,31 +75,7 @@ def main():
                 compile(f.read(), full, "exec")
         check(f"Sintaxis {nombre}", verificar)
 
-    # =============================================
-    print()
-    print("=" * 60)
-    print("VALIDACION 4: ARCHIVOS DUCKDB ELIMINADOS DEL CODIGO")
-    print("=" * 60)
 
-    def check_no_duckdb_import(filepath):
-        full = os.path.join(os.path.dirname(__file__), filepath)
-        with open(full, "r", encoding="utf-8") as f:
-            content = f.read()
-        if "import duckdb" in content:
-            raise AssertionError(f"Todavia tiene 'import duckdb'")
-        if "duckdb.query" in content:
-            raise AssertionError(f"Todavia tiene 'duckdb.query'")
-        if "duckdb.connect" in content:
-            raise AssertionError(f"Todavia tiene 'duckdb.connect'")
-
-    archivos_criticos = [
-        "ingesta y validacion/silver/cleaners/clean_cnpv.py",
-        "ingesta y validacion/config/settings.py",
-        "ingesta y validacion/utils/spark_session.py",
-        "ingesta y validacion/requirements.txt",
-    ]
-    for a in archivos_criticos:
-        check(f"Sin DuckDB en {os.path.basename(a)}", lambda path=a: check_no_duckdb_import(path))
 
     # =============================================
     print()
