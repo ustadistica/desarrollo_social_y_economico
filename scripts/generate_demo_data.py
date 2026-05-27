@@ -1,69 +1,87 @@
-import pandas as pd
-import numpy as np
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-# Rutas
-# Utilizando path relativo al directorio del script
+import pandas as pd
+
+
 ROOT = Path(__file__).parent.parent.resolve()
-DATOS_BRONZE = ROOT / "datos" / "bronze"
+DATOS_BRONZE = ROOT / "data" / "bronze"
+
 
 def create_mock_cnpv():
-    # 5 Municipios de ejemplo
     data = {
-        'municipio': ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'],
-        'divipola_municipio': ['11001', '05001', '76001', '08001', '13001'],
-        'ipm': [10.5, 12.3, 15.1, 18.2, 22.4],
-        'nbi': [5.2, 6.1, 8.4, 10.2, 12.5],
-        'poblacion': [7900000, 2500000, 2200000, 1300000, 1000000],
-        'pobreza_monetaria': [25.0, 28.5, 32.1, 35.4, 40.2],
-        'deficit_habitacional_cuantitativo': [1.2, 2.1, 3.4, 4.2, 5.5],
-        'anio': [2024]*5
+        "municipio": ["Bogota", "Medellin", "Cali", "Barranquilla", "Cartagena"],
+        "divipola_municipio": ["11001", "05001", "76001", "08001", "13001"],
+        "poblacion": [7900000, 2500000, 2200000, 1300000, 1000000],
+        "anio": [2018] * 5,
     }
     df = pd.DataFrame(data)
-    
-    # Metadata técnica (requerida por el pipeline)
-    df['_ingestion_timestamp'] = datetime.now().isoformat()
-    df['_source'] = 'Mock Server'
-    
-    out_dir = DATOS_BRONZE / "dane_cnpv" / f"ingestion_date={datetime.now().strftime('%Y-%m-%d')}"
+    df["_ingestion_timestamp"] = datetime.now().isoformat()
+    df["_source"] = "Mock CNPV"
+
+    out_dir = DATOS_BRONZE / "cnpv" / f"ingestion_date={datetime.now().strftime('%Y-%m-%d')}"
     out_dir.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(out_dir / "cnpv_data.parquet")
+    df.to_parquet(out_dir / "cnpv_data.parquet", index=False)
     print(f"Mock CNPV creado en {out_dir}")
 
-def create_mock_cenu():
-    data = {
-        'municipio': ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'],
-        'divipola_municipio': ['11001', '05001', '76001', '08001', '13001'],
-        'total_micronegocios': [150000, 80000, 70000, 45000, 35000],
-        'economia_popular_unidades': [60000, 35000, 30000, 20000, 15000],
-        'codigo_ciiu': ['G47', 'I56', 'G46', 'C14', 'I55'],
-        'anio': [2024]*5
-    }
-    df = pd.DataFrame(data)
-    df['_ingestion_timestamp'] = datetime.now().isoformat()
-    df['_source'] = 'Mock Server'
-    
-    out_dir = DATOS_BRONZE / "dane_cenu" / f"ingestion_date={datetime.now().strftime('%Y-%m-%d')}"
+
+def create_mock_emicron():
+    """Crear EMICRON demo compatible con el fallback de factores separados."""
+    out_dir = DATOS_BRONZE / "emicron" / "2019"
     out_dir.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(out_dir / "cenu_data.parquet")
-    print(f"Mock CENU creado en {out_dir}")
+
+    identificacion = pd.DataFrame(
+        {
+            "DIRECTORIO": [1, 2, 3],
+            "SECUENCIA_P": [1, 1, 1],
+            "SECUENCIA_ENCUESTA": [1, 1, 1],
+            "COD_DEPTO": ["05", "05", "08"],
+            "F_EXP": [0.0, 0.0, 0.0],
+            "_ingestion_timestamp": datetime.now().isoformat(),
+            "_source": "Mock EMICRON",
+            "_source_version": "EMICRON_2019",
+            "_emicron_year": 2019,
+        }
+    )
+    identificacion.to_parquet(
+        out_dir / "emicron_modulo_de_identificacion_2019_raw.parquet",
+        index=False,
+    )
+
+    factores = pd.DataFrame(
+        {
+            "DIRECTORIO": [1, 2, 3],
+            "SECUENCIA_P": [1, 1, 1],
+            "SECUENCIA_ENCUESTA": [1, 1, 1],
+            "fex_c": [100.0, 120.0, 80.0],
+            "_ingestion_timestamp": datetime.now().isoformat(),
+            "_source": "Mock EMICRON",
+            "_source_version": "EMICRON_2019",
+            "_emicron_year": 2019,
+        }
+    )
+    factores.to_parquet(
+        out_dir / "emicron_fex_proyecciones_cnpv_2018_2019_2019_raw.parquet",
+        index=False,
+    )
+    print(f"Mock EMICRON creado en {out_dir}")
+
 
 def setup_secop_data():
-    source = ROOT / "datos" / "secop_nuevos1.parquet"
+    source = ROOT / "data" / "secop_nuevos1.parquet"
     if source.exists():
         df = pd.read_parquet(source)
-        # Adaptar nombres mínimamente si es necesario
-        df['_ingestion_timestamp'] = datetime.now().isoformat()
-        
+        df["_ingestion_timestamp"] = datetime.now().isoformat()
+
         out_dir = DATOS_BRONZE / "secop_ii" / f"ingestion_date={datetime.now().strftime('%Y-%m-%d')}"
         out_dir.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(out_dir / "secop_data.parquet")
+        df.to_parquet(out_dir / "secop_data.parquet", index=False)
         print(f"Datos SECOP reales movidos a {out_dir}")
     else:
-        print("No se encontró secop_nuevos1.parquet")
+        print("No se encontro data/secop_nuevos1.parquet")
+
 
 if __name__ == "__main__":
     create_mock_cnpv()
-    create_mock_cenu()
+    create_mock_emicron()
     setup_secop_data()

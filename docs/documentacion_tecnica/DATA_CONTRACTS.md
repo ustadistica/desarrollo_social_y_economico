@@ -22,18 +22,18 @@ A esta capa acceden tablas base limpiadas que aún preservan el volumen atómico
 | `monto_contrato` | `FLOAT` | NOT NULL | No puede ser nulo, imputar a `0.0`. Debe ser `>= 0.0`. Rechas negativas contables. |
 | `estado_contrato` | `STRING` | NULL | Valores estandarizados a UPPERCASE. |
 
-### 1.2 `silver_emicron_consolidado.parquet`
-**Propósito:** Base longitudinal consolidada ponderada de micronegocios DANE.
-**Regla de Negocio:** Almacenará la base probabilística *antes* de sumatorias para ser auditable.
+### 1.2 `silver_emicron_agregado.parquet`
+**Propósito:** Agregado departamental-año de micronegocios DANE con expansión muestral validada.
+**Regla de Negocio:** La base probabilística se deduplica por unidad muestral antes de agregar. El campo de salida `volumen_micronegocios_exp` se calcula con `SUM(factor_expansion)`.
 
 | Columna Target (Silver) | Tipo de Dato | Nulabilidad | Validaciones (Assertions/Exceptions) |
 | --- | --- | --- | --- |
-| `id_encuesta_micron` | `STRING` | NOT NULL | PK compuesta (depende de módulos encuestados). |
-| `anio_encuesta` | `INTEGER` | NOT NULL | Rango permitido: `>= 2019` AND `<= 2024`. |
-| `divipola_municipio`| `STRING(5)` | NOT NULL | Regex de validación: `^[0-9]{5}$`. |
-| `fex_c` (Factor Expansión) | `FLOAT` | NOT NULL | Debe ser estrictamente `> 0`. Si falta, el orquestador abortará la ingesta advirtiendo de sesgos poblacionales. |
-| `codigo_ciiu` | `STRING(4)` | NULL | Cast string, rellenado a 4 digitos. |
-| `micronegocio_formal` | `INTEGER` | NOT NULL | Constraint tipo Boolean Flag estricto: `IN (0, 1)`. |
+| `divipola_key` | `STRING(5)` | NOT NULL | Código departamental `XX000`. |
+| `divipola_depto` | `STRING(2)` | NOT NULL | Código DANE de departamento. |
+| `anio_key` | `INTEGER` | NOT NULL | Rango permitido: `>= 2019` AND `<= 2024`. |
+| `volumen_micronegocios_exp` | `FLOAT` | NOT NULL | Debe ser `> 0` para años EMICRON con registros. |
+| `n_registros_encuesta` | `INTEGER` | NOT NULL | Conteo de unidades muestrales deduplicadas. |
+| `_factor_expansion_origen` | `STRING` | NOT NULL | `F_EXP` o archivo/columna de fallback usada. |
 
 ---
 
@@ -57,7 +57,7 @@ Los schemas esperados bajo las funciones agregadoras deben cumplir con la unicid
 | --- | --- | --- | --- |
 | `divipola_key` | `STRING(5)` | Foreign Key | - |
 | `anio_key` | `INTEGER` | Foreign Key | - |
-| `volumen_micronegocios_exp`| `FLOAT` | Facture | Requiere que `> 0`. Resultante de sumatoria dictaminada por FEX. |
+| `volumen_micronegocios_exp`| `FLOAT` | Facture | Requiere que `> 0` para años EMICRON con registros. Resultante de `SUM(factor_expansion)` después de validar/fusionar FEX. |
 
 ### 2.2 Datamart Output (Consumo)
 **Contrato Supremo para `mart_desarrollo_social_economico_municipio_anio.parquet`**:

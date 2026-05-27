@@ -90,14 +90,12 @@ def _run_silver(sources=None):
     silver_base = settings.SILVER_PATH
     silver_base.mkdir(parents=True, exist_ok=True)
 
-    # Cada cleaner escribe en silver_base/<source>/... para que Gold lea las
-    # rutas canonicas silver/<source>/silver_<source>_agregado.parquet
+    # Cada cleaner escribe en rutas canonicas dentro de data/silver:
+    # silver_<fuente>_agregado.parquet y, cuando aplica, transaccionales.
     def _run(name, cleaner_fn):
         src_bronze = bronze_base / name
-        src_silver = silver_base / name
-        src_silver.mkdir(parents=True, exist_ok=True)
         try:
-            return cleaner_fn(src_bronze, src_silver, settings)
+            return cleaner_fn(src_bronze, silver_base, settings)
         except Exception as e:
             logger.error(f"  {name}: FALLO -- {e}")
             return {"status": "failed", "error": str(e)}
@@ -124,6 +122,27 @@ def _run_silver(sources=None):
             f.write(f"## {name.upper()}\n**Estado:** {outcome.get('status', 'failed').upper()}\n\n")
             if outcome.get("status") == "success":
                 f.write(f"- Registros: {outcome.get('registros', 0):,}\n")
+                if outcome.get("duplicados") is not None:
+                    f.write(f"- Duplicados llave territorial-anual: {outcome.get('duplicados'):,}\n")
+                nulls = outcome.get("nulls") or {}
+                if nulls:
+                    nulls_text = ", ".join(f"{col}={value:,}" for col, value in nulls.items())
+                    f.write(f"- Nulos de llaves críticas: {nulls_text}\n")
+                fallback_events = outcome.get("factores_fallback") or []
+                if fallback_events:
+                    f.write("- Factores fallback EMICRON aplicados:\n")
+                    for event in fallback_events:
+                        source_name = Path(str(event.get("source", ""))).name
+                        f.write(
+                            "  - "
+                            f"anio={event.get('anio')}, "
+                            f"columna={event.get('factor_col')}, "
+                            f"fuente={source_name}, "
+                            f"filas={event.get('filas', 0):,}, "
+                            f"suma_factor={event.get('suma_factor', 0):,.2f}\n"
+                        )
+                if outcome.get("reglas_aplicadas"):
+                    f.write(f"- Reglas aplicadas: {outcome['reglas_aplicadas']}\n")
             else:
                 f.write(f"❌ {outcome.get('error', 'Error desconocido')}\n")
             f.write("\n---\n")
@@ -210,7 +229,7 @@ def cmd_all():
     _run_silver()
     _run_gold()
 
-    logger.info("[OK] PIPELINE COMPLETADO. Data lista en datos/oro/marts/latest/")
+    logger.info("[OK] PIPELINE COMPLETADO. Data lista en data/gold/marts/latest/")
 
 
 # ─── Soporte para `python -m src.cli` ──────────────────────────────

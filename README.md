@@ -4,16 +4,16 @@ Repositorio para el análisis de Sinergia Socioeconómica, Gasto Público (SECOP
 
 ## Arquitectura
 
-1. **BRONZE** (`datos/bronze/`): Ingesta cruda a Parquet con hash y timestamp.
-2. **SILVER** (`datos/plata/`): Estandarización DIVIPOLA, agregación a grano `Municipio-Año`.
-3. **GOLD** (`datos/oro/`): Modelo estrella (dimensiones + hechos) y Datamart OBT.
+1. **BRONZE** (`data/bronze/`): Ingesta cruda a Parquet con hash y timestamp.
+2. **SILVER** (`data/silver/`): Estandarización DIVIPOLA, agregación a grano `Municipio-Año`.
+3. **GOLD** (`data/gold/`): Modelo estrella (dimensiones + hechos) y Datamart OBT.
 
 ## Output Final para Analistas
 
 No es necesario re-ejecutar el pipeline. El resultado consumible está en:
 
 ```
-datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
 ```
 
 Los reportes de calidad están en `documentacion_tecnica/`.

@@ -146,22 +146,22 @@ fuentes:
     campos_salida_bronze:
       - divipola_key
       - anio_key
-      - volumen_micronegocios
-      - factor_expansion_fex_c
+      - volumen_micronegocios_exp
+      - factor_expansion_origen
     transformacion_silver: "clean_emicron.py"
-    agregacion_silver: "departamento-año con expansión fex_c"
+    agregacion_silver: "departamento-año con SUM(factor_expansion)"
     expansion_metodologia: |
       Encuesta muestral con factor de expansión. Procedimiento:
-      1. Aplicar fex_c a cada observación muestral
+      1. Construir factor_expansion: usar F_EXP cuando venga válido; si el año queda en cero, fusionar fex_c/FEX_C desde archivos separados por llaves de encuesta
       2. Agregar por depto-año
       3. Generar divipola_key departamental (XX000)
       4. Validar que volumen_micronegocios_exp > 0 después de expansión
     validaciones_aplicadas:
       - "Normalización DIVIPOLA a XX000 (departamental)"
-      - "Validación factor fex_c > 0"
-      - "Aplicación factor expansión: volumen_final = volumen_raw * fex_c"
-      - "Filtro año: 2017-2024"
-    notas: "Encuesta limitada (25 registros en demo). Granularidad DEPARTAMENTAL (XX000). En Gold se hace lookup desde municipios a depto para heredar indicadores (Bug #3 mitiga esta limitación)."
+      - "Validación factor_expansion > 0 por año con registros"
+      - "Fallback de factores separados cuando F_EXP viene en cero"
+      - "Filtro año: 2019-2024"
+    notas: "Encuesta muestral real 2019-2024. Granularidad DEPARTAMENTAL (XX000). En Gold y Mart se conserva esa granularidad para no duplicar estimaciones departamentales en municipios."
 
   # ==== PROYECCIONES DE POBLACIÓN DANE ====
   - nombre: "DANE Proyecciones - Estimaciones de Población 2018-2050"
@@ -201,8 +201,8 @@ transformaciones_silver:
 
   cnpv:
     script: "src/transformacion/silver/cleaners/clean_cnpv.py"
-    entrada: "datos/bronze/cnpv/"
-    salida: "datos/plata/silver_cnpv_agregado.parquet"
+    entrada: "data/bronze/cnpv/"
+    salida: "data/silver/silver_cnpv_agregado.parquet"
     pasos:
       - "Lectura de 33 archivos CSV (uno por depto)"
       - "Normalización DIVIPOLA a 5 dígitos (XXXXX para municipio, XX000 para agregado depto)"
@@ -217,9 +217,9 @@ transformaciones_silver:
 
   secop_i:
     script: "src/transformacion/silver/cleaners/clean_secop_i.py"
-    entrada: "datos/bronze/secop_i/"
-    salida_agregado: "datos/plata/silver_secop_i_agregado.parquet"
-    salida_transaccional: "datos/plata/silver_secop_i_transaccional.parquet"
+    entrada: "data/bronze/secop_i/"
+    salida_agregado: "data/silver/silver_secop_i_agregado.parquet"
+    salida_transaccional: "data/silver/silver_secop_i_transaccional.parquet"
     pasos:
       - "Lectura CSV histórico SECOP I"
       - "Normalización DIVIPOLA (lookup por Departamento+Ciudad)"
@@ -237,9 +237,9 @@ transformaciones_silver:
 
   secop_ii:
     script: "src/transformacion/silver/cleaners/clean_secop_ii.py"
-    entrada: "datos/bronze/secop_ii/"
-    salida_agregado: "datos/plata/silver_secop_ii_agregado.parquet"
-    salida_transaccional: "datos/plata/silver_secop_ii_transaccional.parquet"
+    entrada: "data/bronze/secop_ii/"
+    salida_agregado: "data/silver/silver_secop_ii_agregado.parquet"
+    salida_transaccional: "data/silver/silver_secop_ii_transaccional.parquet"
     pasos:
       - "Lectura dataset SECOP II (3.5M registros, 9.6GB sample 43MB)"
       - "Normalización DIVIPOLA (3 estrategias: divipola_key_mapped > codigo municipio > lookup nombre)"
@@ -263,26 +263,26 @@ transformaciones_silver:
 
   emicron:
     script: "src/transformacion/silver/cleaners/clean_emicron.py"
-    entrada: "datos/bronze/emicron/"
-    salida: "datos/plata/silver_emicron_agregado.parquet"
+    entrada: "data/bronze/emicron/"
+    salida: "data/silver/silver_emicron_agregado.parquet"
     pasos:
       - "Lectura CSV encuesta muestral EMICRON"
       - "Normalización DIVIPOLA a XX000 (departamental)"
-      - "Aplicación factor expansión muestral (fex_c)"
-      - "Cálculo volumen_micronegocios_expandido = volumen_raw * fex_c"
+      - "Construcción factor_expansion: F_EXP válido o fallback fex_c/FEX_C"
+      - "Cálculo volumen_micronegocios_exp = SUM(factor_expansion)"
       - "Agregación depto-año"
     validaciones:
       - "divipola_key ~ ^[0-9]{2}000$"
       - "anio_key IN [2017..2024]"
-      - "factor_expansion_fex_c > 0"
-      - "volumen_micronegocios_expandido > 0"
-    registros_entrada: 25
-    registros_salida_agg: 25
+      - "factor_expansion > 0 para años con registros"
+      - "volumen_micronegocios_exp > 0"
+    registros_entrada: 485612
+    registros_salida_agg: 150
 
   proyecciones_dane:
     script: "src/transformacion/silver/cleaners/clean_proyecciones.py"
-    entrada: "datos/bronze/proyecciones/"
-    salida: "datos/plata/silver_proyecciones_agregado.parquet"
+    entrada: "data/bronze/proyecciones/"
+    salida: "data/silver/silver_proyecciones_agregado.parquet"
     pasos:
       - "Lectura CSV proyecciones DANE"
       - "Normalización DIVIPOLA a XX000 (departamental)"
@@ -302,7 +302,7 @@ dimensional_gold:
 
   dimensiones:
     dim_territorio:
-      archivo: "datos/oro/dim_territorio.parquet"
+      archivo: "data/gold/dim_territorio.parquet"
       granularidad: "municipal"
       cardinalidad: 299
       campos:
@@ -318,7 +318,7 @@ dimensional_gold:
         - "Sin duplicados"
 
     dim_tiempo:
-      archivo: "datos/oro/dim_tiempo.parquet"
+      archivo: "data/gold/dim_tiempo.parquet"
       granularidad: "anual"
       cardinalidad: 12
       rango_anos: "2018-2029"
@@ -333,7 +333,7 @@ dimensional_gold:
 
   tablas_hechos:
     fact_contratacion_municipio_anio:
-      archivo: "datos/oro/fact_contratacion_municipio_anio.parquet"
+      archivo: "data/gold/fact_contratacion_municipio_anio.parquet"
       granularidad: "municipio-año"
       cardinalidad: 3129
       campos:
@@ -355,7 +355,7 @@ dimensional_gold:
         - "proveedores_unicos > 0"
 
     fact_micronegocios_municipio_anio:
-      archivo: "datos/oro/fact_micronegocios_municipio_anio.parquet"
+      archivo: "data/gold/fact_micronegocios_municipio_anio.parquet"
       granularidad: "departamento-año"
       cardinalidad: 156
       campos:
@@ -363,14 +363,14 @@ dimensional_gold:
         - anio_key: "FK a dim_tiempo"
         - volumen_micronegocios_exp: "Volumen expandido por fex_c"
       fuente: "EMICRON (granularidad inherentemente departamental)"
-      notas: "Granularidad DEPARTAMENTAL (XX000). En Mart, municipios heredan del depto (Bug #3 lookup)"
+      notas: "Granularidad DEPARTAMENTAL (XX000). En Mart solo los códigos XX000 contienen volumen EMICRON para evitar duplicar el total departamental en cada municipio."
       validaciones:
         - "(divipola_key, anio_key): PK compuesta (depto-año)"
         - "divipola_key ~ ^[0-9]{2}000$"
         - "volumen_micronegocios_exp > 0"
 
     fact_demografia_municipio_anio:
-      archivo: "datos/oro/fact_demografia_municipio_anio.parquet"
+      archivo: "data/gold/fact_demografia_municipio_anio.parquet"
       granularidad: "departamento-año"
       cardinalidad: 408
       campos:
@@ -385,7 +385,7 @@ dimensional_gold:
         - "poblacion_total_proyectada > 0"
 
     fact_censo_municipio:
-      archivo: "datos/oro/fact_censo_municipio.parquet"
+      archivo: "data/gold/fact_censo_municipio.parquet"
       granularidad: "municipal"
       cardinalidad: 299
       campos:
@@ -400,7 +400,7 @@ dimensional_gold:
         - "poblacion_total_base > 0"
 
   one_big_table_obt:
-    archivo: "datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet"
+    archivo: "data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet"
     descripcion: "Tabla analítica final: cruza todas las dimensiones y hechos para análisis integrado social-económico"
     cardinalidad: 3129
     territorios_unicos: 295
@@ -415,13 +415,13 @@ dimensional_gold:
         - es_anio_electoral_presidencial: "Flag 2018/2022"
         - es_pandemia: "Flag 2020/2021"
       sociales:
-        - poblacion_total_proyectada: "De DANE (depto, heredado vía Bug #3 fix)"
+        - poblacion_total_proyectada: "De DANE (depto, sólo en códigos XX000)"
         - poblacion_censo_2018: "De CNPV snapshot"
       economicos:
         - cantidad_procesos_adjudicados: "De SECOP I+II deduplicated"
         - inversion_total_monto: "De SECOP I+II deduplicated"
         - proveedores_unicos: "De SECOP I+II deduplicated"
-        - volumen_micronegocios_exp: "De EMICRON (depto, heredado vía Bug #3 fix)"
+        - volumen_micronegocios_exp: "De EMICRON (depto, sólo en códigos XX000)"
       derivados:
         - indicador_inversion_per_capita: "inversion_total_monto / poblacion_total_proyectada"
         - indicador_densidad_micronegocios: "volumen_micronegocios_exp / poblacion_total_proyactada"
@@ -448,18 +448,16 @@ dimensional_gold:
 
       joins_granularidad_mismatch:
         descripcion: |
-          Bug #3 fix: fact_demografia y fact_micronegocios son DEPARTAMENTALES (XX000)
+          fact_demografia y fact_micronegocios son DEPARTAMENTALES (XX000)
           mientras fact_contratacion es MUNICIPAL (XXXXX).
-          Solución: Crear _div_depto = divipola_key[:2] + "000" y hacer lookup departamental.
-          Cada municipio HEREDA los indicadores del agregado departamental al que pertenece.
+          Solución vigente: conservar los indicadores departamentales sólo en
+          las filas XX000. No se replica el volumen departamental en municipios.
         pasos:
-          - "1. Derivar _div_depto = divipola[:2] + '000' para cada municipio"
-          - "2. Renombrar divipola_key en fact_micronegocios → _div_depto"
-          - "3. Renombrar divipola_key en fact_demografia → _div_depto"
-          - "4. JOIN spine LEFT JOIN fact_mic ON (_div_depto, anio_key)"
-          - "5. JOIN spine LEFT JOIN fact_dem ON (_div_depto, anio_key)"
-          - "6. DROP _div_depto (columna auxiliar)"
-        impacto: "Per-cápita: 0/3129 → 1034/3129 calculado (100% cobertura poblacional)"
+          - "1. Mantener fact_micronegocios en divipola_key XX000"
+          - "2. Mantener fact_demografia en divipola_key XX000"
+          - "3. JOIN directo por (divipola_key, anio_key)"
+          - "4. Calcular densidad sólo donde existe población/volumen departamental"
+        impacto: "Evita fan-out: el volumen EMICRON departamental no se multiplica por municipios."
 
       broadcast_censo:
         descripcion: |
@@ -566,51 +564,34 @@ bugs_corregidos:
     fecha_correccion: "2026-04-23"
 
   bug_3:
-    id: "BUG #3: Mart - Per-Cápita NaN por Granularidad Mismatch"
+    id: "DECISION #3: Mart - Conservación de granularidad departamental"
     severidad: "🔴 CRÍTICA (indicador clave falla)"
     archivo_afectado: "src/transformacion/gold/build_mart.py:139-148"
     descripcion: |
-      El indicador inversion_per_capita se calcula:
-      inversion_per_capita = inversion_total_monto / poblacion_total_proyectada
-
-      Pero:
-      - inversion_total_monto viene de fact_contratacion (GRANULARIDAD MUNICIPAL: XXXXX)
-      - poblacion_total_proyectada viene de fact_demografia (GRANULARIDAD DEPARTAMENTAL: XX000)
-
-      En los joins por (divipola_key, anio_key):
-      - Municipio 05001 (Medellín) en spine busca poblacion con key "05001"
-      - fact_demografia solo tiene "05000" (depto Antioquia)
-      - No hay coincidencia → poblacion_total_proyectada = NaN para todos los municipios
-
-      Resultado: 0/3129 indicadores per-cápita calculados (100% NaN)
+      EMICRON y proyecciones son departamentales (XX000), mientras SECOP y CNPV
+      pueden ser municipales (XXXXX). La política vigente conserva cada hecho
+      en su grano natural dentro del mart y evita distribuir o replicar
+      estimaciones departamentales en municipios.
 
     solucion: |
-      Implementar lookup departamental (hierarchical join):
-      1. Derivar _div_depto = divipola_key[:2] + "000" para cada municipio
-      2. Renombrar divipola_key en fact_demografia a _div_depto
-      3. JOIN Mart con fact_demografia ON (_div_depto, anio_key) en lugar de (divipola_key, anio_key)
-
-      Cada municipio HEREDA la población del agregado departamental al que pertenece.
-      Esto es válido porque:
-      - fact_demografia (DANE) es inherentemente departamental (muestreo nacional)
-      - No hay granularidad municipal en DANE, ni deberían estimarse proyecciones municipales sin modelo espacial
+      JOIN directo por (divipola_key, anio_key). Las filas XX000 contienen
+      demografía y micronegocios departamentales; las filas municipales no
+      reciben esos valores por herencia.
 
     cambio_codigo:
-      linea_1: "df['_div_depto'] = df['divipola_key'].str[:2] + '000'"
-      linea_2: "f_dem_join = f_dem.rename(columns={'divipola_key': '_div_depto'})"
-      linea_3: "df = df.merge(f_dem_join, on=['_div_depto', 'anio_key'], how='left')"
-      linea_4: "df = df.drop(columns=['_div_depto'])"
+      linea_1: "df = df.merge(f_mic, on=['divipola_key', 'anio_key'], how='left')"
+      linea_2: "df = df.merge(f_dem, on=['divipola_key', 'anio_key'], how='left')"
 
     impacto_cuantitativo:
-      indicadores_antes: 0
-      indicadores_despues: 1034
-      mejora: "100% a 33% fill rate (1034/3129 filas con población > 0)"
-      cobertura: "Todos los municipios en depto con proyección DANE (prácticamente 100% de municipios)"
+      indicadores_antes: "replicación departamental potencial"
+      indicadores_despues: "valores departamentales sólo en XX000"
+      mejora: "sin duplicación territorial de EMICRON"
+      cobertura: "25 departamentos por año EMICRON 2019-2024"
 
     validacion_aplicada:
-      - "Verificar count(indicador_inversion_per_capita NOT NULL) > 1000"
-      - "Verificar max(indicador_inversion_per_capita) > 0"
-      - "Spot check: municipios en mismo depto deben heredar misma población"
+      - "Verificar fact_micronegocios sin duplicados por (divipola_key, anio_key)"
+      - "Verificar 2019 y 2020 con volumen_micronegocios_exp > 0"
+      - "Verificar que el mart mantiene EMICRON en 25 filas departamentales por año"
 
     fecha_correccion: "2026-04-23"
 
@@ -623,15 +604,15 @@ resumen_pipeline:
     - "✅ Gold (Dimensional): Dimensiones, hechos, OBT analítico"
 
   artefactos_principales:
-    - "datos/bronze/: 5 fuentes en Parquet crudo"
-    - "datos/plata/: 5 transformaciones normalizadas"
-    - "datos/oro/dim_territorio.parquet: 299 municipios"
-    - "datos/oro/dim_tiempo.parquet: 2018-2029 (12 años)"
-    - "datos/oro/fact_contratacion_municipio_anio.parquet: 3129 filas (SECOP I+II dedup)"
-    - "datos/oro/fact_micronegocios_municipio_anio.parquet: 156 filas (EMICRON depto)"
-    - "datos/oro/fact_demografia_municipio_anio.parquet: 408 filas (DANE depto)"
-    - "datos/oro/fact_censo_municipio.parquet: 299 filas (CNPV 2018)"
-    - "datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet: OBT final (3129 filas)"
+    - "data/bronze/: 5 fuentes en Parquet crudo"
+    - "data/silver/: 5 transformaciones normalizadas"
+    - "data/gold/dim_territorio.parquet: 1155 territorios"
+    - "data/gold/dim_tiempo.parquet: 2018-2029 (12 años)"
+    - "data/gold/fact_contratacion_municipio_anio.parquet: 9711 filas (SECOP I+II dedup)"
+    - "data/gold/fact_micronegocios_municipio_anio.parquet: 150 filas (EMICRON depto)"
+    - "data/gold/fact_demografia_municipio_anio.parquet: 1089 filas (DANE depto)"
+    - "data/gold/fact_censo_municipio.parquet: 1122 filas (CNPV 2018)"
+    - "data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet: OBT final (13860 filas)"
 
   cobertura_territorial: "295 municipios únicos"
   cobertura_temporal: "12 años (2018-2029)"

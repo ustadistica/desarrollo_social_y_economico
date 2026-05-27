@@ -19,7 +19,8 @@
 - **Registros consolidados (Grano Municipio-Año):** 150
 - **Completitud (Nulls en variables clave):** {'divipola_key': 0, 'anio_key': 0}
 - **Unicidad (PK):** 0 duplicados.
-- **Reglas Aplicadas:** Uso exclusivo del modulo autoritativo (identificacion) para evitar multiplicar F_EXP por el numero de modulos. Deduplicacion por (DIRECTORIO, SECUENCIA_P, SECUENCIA_ENCUESTA, anio). SUM(F_EXP) -> volumen expandido de micronegocios por depto-anio.
+- **Factores fallback EMICRON aplicados:** 2019 usa `fex_c` desde `emicron_fex_proyecciones_cnpv_2018_2019_2019_raw.parquet` (25 filas, suma 6,025,575.23); 2020 usa `fex_c` desde `emicron_fex_proyecciones_cnpv_2018_2020_2020_raw.parquet` (25 filas, suma 5,631,123.07).
+- **Reglas Aplicadas:** Uso exclusivo del modulo autoritativo para evitar multiplicar unidades muestrales. Deduplicacion por (DIRECTORIO, SECUENCIA_P, SECUENCIA_ENCUESTA, anio). SUM(factor_expansion) -> volumen expandido de micronegocios por depto-anio; factor_expansion usa F_EXP valido o fallback fex_c/FEX_C/fex_micro_dpto fusionado desde archivos de factores.
 
 ---
 ## Fuente: SECOP_I

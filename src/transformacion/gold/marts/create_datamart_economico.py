@@ -175,7 +175,7 @@ def create_matriz_sinergia(
 
 def _calcular_vocacion_productiva(fact_tejido_productivo_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calcular vocación productiva por municipio usando Factor de Expansión (fex_c).
+    Calcular vocacion productiva usando factor de expansion canonico.
     
     Parameters:
     - fact_tejido_productivo_df: Tabla de hechos de tejido productivo (Microdatos)
@@ -192,20 +192,35 @@ def _calcular_vocacion_productiva(fact_tejido_productivo_df: pd.DataFrame) -> pd
     # Crear copia para evitar modificar el original
     df = fact_tejido_productivo_df.copy()
     
-    # Asegurar existencia del FEX. Si no hay, usar 1 (como un censo default, aunque arrojará warning)
-    if 'fex_c' in df.columns:
-        df['fex_c'] = pd.to_numeric(df['fex_c'], errors='coerce').fillna(1)
-    else:
-        logger.warning("No se encontró 'fex_c' en EMICRON/CENU. Se usarán pesos muestrales no expandidos (fex_c=1).")
-        df['fex_c'] = 1
+    factor_cols = [
+        'factor_expansion',
+        'fex_c',
+        'FEX_C',
+        'F_EXP',
+        'fex_micro_dpto',
+        'FEX_MICRO_DPTO',
+    ]
+    factor_col = next((col for col in factor_cols if col in df.columns), None)
+    if factor_col is None:
+        raise ValueError(
+            "fact_tejido_productivo_df no contiene factor de expansion. "
+            "No se puede estimar EMICRON sin un factor_expansion validado."
+        )
+
+    df['factor_expansion'] = pd.to_numeric(df[factor_col], errors='coerce')
+    factor_invalido = df['factor_expansion'].isna() | (df['factor_expansion'] <= 0)
+    if factor_invalido.any():
+        raise ValueError(
+            f"Factor de expansion invalido en {int(factor_invalido.sum())} filas "
+            f"de fact_tejido_productivo_df usando columna {factor_col}."
+        )
         
     # Multiplicar conteos base por el FEX
     cols_to_expand = ['economia_popular_unidades', 'total_micronegocios', 'establecimientos_industria', 'total_establecimientos']
     
     for col in cols_to_expand:
         if col in df.columns:
-            # Asumimos que la columna puede tener 1/0 o el valor del conteo en microdatos. Multiplicamos por FEX.
-            df[f'{col}_exp'] = pd.to_numeric(df[col], errors='coerce').fillna(0) * df['fex_c']
+            df[f'{col}_exp'] = pd.to_numeric(df[col], errors='coerce').fillna(0) * df['factor_expansion']
     
     # Agregaciones: Sumar los datos expandidos por municipio
     agg_dict = {}
@@ -217,7 +232,7 @@ def _calcular_vocacion_productiva(fact_tejido_productivo_df: pd.DataFrame) -> pd
         # Promedio ponderado real requeriría formalizados_expandido / total_expandido
         # Como fallback usamos promedio simple si no hay cómo discriminar formalizados
         if 'micronegocios_formales' in df.columns:
-            df['micronegocios_formales_exp'] = pd.to_numeric(df['micronegocios_formales'], errors='coerce').fillna(0) * df['fex_c']
+            df['micronegocios_formales_exp'] = pd.to_numeric(df['micronegocios_formales'], errors='coerce').fillna(0) * df['factor_expansion']
             agg_dict['micronegocios_formales_exp'] = 'sum'
         else:
             agg_dict['tasa_formalizacion'] = 'mean'
@@ -225,9 +240,9 @@ def _calcular_vocacion_productiva(fact_tejido_productivo_df: pd.DataFrame) -> pd
     # Manejar CIIU predominante de forma pesada (por FEX)
     if 'codigo_ciiu' in df.columns:
         def weighted_mode(group):
-            # Sumar pesos reales fex_c por cada CIIU en el municipio y escoger el mayor
+            # Sumar pesos reales por cada CIIU en el municipio y escoger el mayor
             if group.empty: return None
-            return group.groupby('codigo_ciiu')['fex_c'].sum().idxmax()
+            return group.groupby('codigo_ciiu')['factor_expansion'].sum().idxmax()
     
     if not agg_dict and 'codigo_ciiu' not in df.columns:
         return pd.DataFrame(columns=['divipola_municipio', 'sector_predominante_tp', 'economia_popular_share', 'formalizacion_rate'])
@@ -259,7 +274,7 @@ def _calcular_vocacion_productiva(fact_tejido_productivo_df: pd.DataFrame) -> pd
     if 'sector_predominante_tp' not in vocacion.columns: vocacion['sector_predominante_tp'] = 'SIN DATOS'
     if 'formalizacion_rate' not in vocacion.columns: vocacion['formalizacion_rate'] = 0
     if 'economia_popular_unidades' not in vocacion.columns: vocacion['economia_popular_unidades'] = 0
-    if 'total_micronegocios' not in vocacion.columns: vocacion['total_micronegocios'] = 1 
+    if 'total_micronegocios' not in vocacion.columns: vocacion['total_micronegocios'] = 0
     
     vocacion['economia_popular_share'] = (
         vocacion['economia_popular_unidades'] / 

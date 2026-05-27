@@ -26,7 +26,7 @@ El pipeline asume la existencia de datos del CNPV 2018 en la capa Bronze. Para i
 El parser (`pipeline/bronze/parsers/parser_csv_cnpv.py`) utiliza un algoritmo de crawling dinámico:
 
 1. **Auto-Descubrimiento:** Explora subcarpetas y cataloga archivos por módulo (`1VIV`, `2HOG`, `3FALL`, `5PER`, `MGN`).
-2. **Consolidación (Chunking):** Lee los CSVs en chunks de 250k filas, detecta el separador (`,` o `;`) y genera archivos Parquet en `datos/bronze/cnpv/`.
+2. **Consolidación (Chunking):** Lee los CSVs en chunks de 250k filas, detecta el separador (`,` o `;`) y genera archivos Parquet en `data/bronze/cnpv/`.
 
 ---
 

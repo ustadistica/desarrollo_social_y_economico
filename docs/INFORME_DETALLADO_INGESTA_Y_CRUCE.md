@@ -267,7 +267,7 @@ La clase `TransformationOrchestrator` ejecuta un "cleaner" específico por fuent
 4. Aplica tipificación (montos a `float64`, DIVIPOLA a `string` con `zfill(5)`, fechas a `datetime`)
 5. Estandariza geográficamente (mapeo a código DIVIPOLA de 5 dígitos)
 6. Agrega a granularidad **Municipio-Año** (o Departamento-Año para EMICRON/Proyecciones)
-7. Escribe el resultado en `data/silver/<fuente>/silver_<fuente>_agregado.parquet`
+7. Escribe el resultado en `data/silver/silver_<fuente>_agregado.parquet`
 
 ### 7.3 Módulos de transformación compartidos
 
@@ -386,9 +386,10 @@ La razón es estructural: todas las entidades del **orden nacional** (Presidenci
 
 1. Lee todos los Parquet por año (2019–2024)
 2. Identifica variables de micronegocios, ventas, empleo
-3. Agrega a nivel **departamental** (no municipal — la EMICRON es encuesta muestral)
-4. El código DIVIPOLA para departamentos usa formato `XX000` (ej: "05000" para Antioquia)
-5. Genera `silver_emicron_agregado.parquet`
+3. Construye `factor_expansion`: usa `F_EXP` cuando viene válido y, si un año queda en cero, fusiona los archivos separados de factores (`fex_c`/`FEX_C`; `fex_micro_dpto` como respaldo) por `(DIRECTORIO, SECUENCIA_P, SECUENCIA_ENCUESTA, año)`
+4. Agrega a nivel **departamental** (no municipal — la EMICRON es encuesta muestral)
+5. El código DIVIPOLA para departamentos usa formato `XX000` (ej: "05000" para Antioquia)
+6. Genera `silver_emicron_agregado.parquet`
 
 ### 7.8 Cleaner Proyecciones (`clean_proyecciones.py`)
 
@@ -615,7 +616,6 @@ src/
 └── utils/
     ├── divipola_catalog.py          # Catálogo DIVIPOLA completo (1,102 municipios)
     ├── ciiu_unspsc_mapping.py       # Mapeo CIIU ↔ UNSPSC
-    ├── expansion_factors.py         # Factores de expansión DANE
     ├── spark_session.py             # Motor dual PySpark↔PyArrow (rama feature/migracion-duckdb-a-pyspark)
     └── logger.py                    # Logger del pipeline
 ```
@@ -636,7 +636,7 @@ CSV Proyecciones       → parser_csv_proyecc. → bronze/proyecciones/*.parquet
 silver/secop_i/silver_secop_i_{transaccional|agregado}.parquet
 silver/secop_ii/silver_secop_ii_{transaccional|agregado}.parquet
 silver/cnpv/silver_cnpv_agregado.parquet
-silver/emicron/silver_emicron_agregado.parquet
+data/silver/silver_emicron_agregado.parquet
 silver/proyecciones/silver_proyecciones_agregado.parquet
         |
         v (Gold: modelo estrella + mart)
@@ -690,7 +690,7 @@ gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
 | Datamart | Se documentaron los flags `tiene_componente_social` / `tiene_componente_economico` y la inclusión adicional de filas solo-censo en el spine |
 | Versionado del mart | Última versión persistida: `data/gold/marts/version_20260507/` |
 | Stub Gold | `main_gold.py`, `gold/schema/*` y `gold/marts/create_datamart_*.py` son esqueletos; el flujo real corre por `src/cli.py::_run_gold` |
-| EDA / HHI / Gini | Limpieza de scripts legacy de HHI y reescritura completa del cálculo de Gini (sec. 6 del EDA): se pasó de Gini sobre monto absoluto (0.89–0.93, inflado) a Gini sobre inversión per cápita (0.45–0.59, plausible). Se eliminó `fillna(0)` y se reporta `n_muni_con_monto>0`. Ver [EDA_corrección.md](docs/EDA_corrección.md) §4 |
+| EDA / HHI / Gini | Limpieza de scripts legacy de HHI y reescritura completa del cálculo de Gini (sec. 6 del EDA): la métrica reportable queda definida como Gini de inversión per cápita (0.45–0.59, plausible). Se descarta el cálculo sobre montos totales, se elimina `fillna(0)` y se reporta `n_muni_ipc`. Ver [EDA_corrección.md](docs/EDA_corrección.md) §4 |
 | **Nuevos ítems §15 (6–9)** | Sesgo SECOP, ausencia de NBI/IPM, población constante 2018, y `fillna(0)` en agregados — cuatro caveats obligatorios para cualquier indicador territorial derivado del mart |
 
 ---

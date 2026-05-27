@@ -17,7 +17,7 @@ Bitácora de refactorización y resolución de conflictos metodológicos reporta
   - **Estrategia Desacoplada a Componentes:**
     - `run_bronze.py`: Asignado a parser de persistencia.
     - `run_silver.py`: Asignado como responsable de confluir, agrupar, normalizar DIVIPOLAS (padding 0) y resolver anomalías antes del modelo relacional.
-    - `run_gold.py`: Asignado a compilar el esqueleto estrella, construir el datamart unificador (OBT) `mart_desarrollo_social_economico_municipio_anio` bajo `datos/gold/marts/latest/`.
+    - `run_gold.py`: Asignado a compilar el esqueleto estrella, construir el datamart unificador (OBT) `mart_desarrollo_social_economico_municipio_anio` bajo `data/gold/marts/latest/`.
 
 ### ✨ `[FEATURE]` - Automatización de CI / Documentación y Logging
 * Aprobados los mecanismos de *Graceful degradation* que blindan cada iteración en el Pipeline emitiendo Reportes Auditables de su fallo y protegiendo el sistema (Si Bronze no encuentra SECOP en CSVs por error del analista, genera archivo vacío seguro para Silver, impidiendo quiebres o *stacktraces* mortales y registrando FAILED en el `BRONZE_VALIDATION_REPORT`).

@@ -63,7 +63,8 @@ La UNION sobre transaccionales garantiza que un proveedor con NITs repetidos en 
    - Usa **solo** el módulo `identificacion`/`caracteristicas`.
    - Deduplica por `(DIRECTORIO, SECUENCIA_P, SECUENCIA_ENCUESTA, _emicron_year)`.
    - Deriva año desde `_source_version='EMICRON_YYYY'` (prioridad 1).
-   - Agrega `SUM(F_EXP)` por `(COD_DEPTO, anio)`, marca `divipola_key = <cod_depto>000`.
+   - Agrega `SUM(factor_expansion)` por `(COD_DEPTO, anio)`, marca `divipola_key = <cod_depto>000`.
+   - `factor_expansion` usa `F_EXP` cuando viene valido; si un anio queda con `F_EXP = 0`, fusiona los archivos separados de factores (`fex_c`/`FEX_C`, con `fex_micro_dpto` como respaldo) por `(DIRECTORIO, SECUENCIA_P, SECUENCIA_ENCUESTA, anio)`.
 2. Gold: `fact_micronegocios_municipio_anio.parquet` con schema `(divipola_key, anio_key, volumen_micronegocios_exp)`.
 3. Mart: `merge` por `(divipola_key, anio_key)`. Solo aplica al código departamental `XX000`; ningún municipio específico recibe `volumen_micronegocios_exp` (coherente con la representatividad de la encuesta).
 

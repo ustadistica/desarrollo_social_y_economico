@@ -235,7 +235,7 @@ desarrollo_social_y_economico/
 - Distribución del monto por año (escala log) y por departamento.
 - Distribución de la inversión per cápita por año (proxy de equidad territorial; reemplaza NBI/IPM, no disponibles en el pipeline actual).
 - Concentración por municipio (Top 15 anual).
-- **Coeficiente de Gini — dos métricas:** (a) concentración geográfica del monto absoluto, reportada con y sin Bogotá D.C. para aislar el sesgo de imputación al municipio de la entidad contratante; (b) Gini de inversión per cápita como métrica principal de equidad. Ver la sección 4 "Corrección de la sección 6 — Coeficiente de Gini" de `docs/EDA_corrección.md` para la metodología completa.
+- **Coeficiente de Gini — métrica oficial:** Gini de inversión per cápita (`inversion_total_monto / poblacion_censo_2018`), reportado con y sin Bogotá D.C. como sensibilidad al sesgo de imputación del SECOP al municipio de la entidad contratante. Ver la sección 4 "Corrección de la sección 6 — Coeficiente de Gini" de `docs/EDA_corrección.md` para la metodología completa.
 - Inversión per cápita vs tamaño poblacional (dispersión + correlación).
 - Cuadrantes de abandono relativo y municipios críticos (sobre IPC).
 - Ticket promedio por cuartil de inversión per cápita.

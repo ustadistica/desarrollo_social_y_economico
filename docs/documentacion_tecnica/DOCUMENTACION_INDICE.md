@@ -15,7 +15,7 @@ Guía rápida para navegar toda la documentación del proyecto. La estructura es
 |-----------|------------|
 | [`../docs/INFORME_TECNICO_INGESTA_CRUCE.md`](../docs/INFORME_TECNICO_INGESTA_CRUCE.md) | **📌 DOCUMENTO MAESTRO.** Ingesta (Bronze) → Validación (Silver) → Cruce (Gold). Incluye: estructura de capas, responsabilidades, bugs corregidos, diccionario Gold integrado, metodología EMICRON. **Comience aquí.** |
 | [`../src/README.md`](../src/README.md) | Estructura interna de `src/`. Flujo de datos, salidas principales, bugs corregidos. |
-| [`../datos/README.md`](../datos/README.md) | Contexto de datos SECOP (histórico y actualización). |
+| [`../data/README.md`](../data/README.md) | Contexto de datos SECOP (histórico y actualización). |
 
 ---
 
@@ -85,7 +85,7 @@ Guía rápida para navegar toda la documentación del proyecto. La estructura es
 
 ### **Si Necesitas Contextualizar el Proyecto:**
 1. [`src/README.md`](src/README.md)
-2. [`datos/README.md`](datos/README.md)
+2. [`data/README.md`](data/README.md)
 
 ---
 
@@ -124,7 +124,7 @@ Guía rápida para navegar toda la documentación del proyecto. La estructura es
 - `src/transformacion/` — Limpieza y modelo dimensional
 - `src/modelo/` — Análisis estadístico
 - `src/visualizacion/` — Gráficos y mapas
-- `datos/bronze/`, `datos/plata/`, `datos/oro/` — Capas de datos
+- `data/bronze/`, `data/silver/`, `data/gold/` — Capas de datos
 
 **Documentación:**
 - `documentacion_tecnica/` — Documentos técnicos detallados

@@ -17,4 +17,4 @@
 - **Estado de Ensamblaje OBT:** `success`
 - **Filas del Cubo Final Analítico:** 13,860
 - **Integridad Referencial Unívoca:** Se valida la NO duplicación del cruce Mpio-Año: N/A registros solapados.
-- **Ruta Simbólica Entregada al Analista:** `datos\oro\marts\latest\mart_desarrollo_social_economico_municipio_anio.parquet`
+- **Ruta Simbólica Entregada al Analista:** `data\gold\marts\latest\mart_desarrollo_social_economico_municipio_anio.parquet`
