@@ -111,11 +111,282 @@ flowchart LR
 
 ## 5. Tratamiento de los datos
 
-### 5.1 Ingesta Bronze
+Esta sección documenta de forma exhaustiva la ingesta, limpieza, integración y validación de las fuentes que alimentan el cálculo del HHI. La arquitectura Medallion (Bronze → Silver → Gold) garantiza trazabilidad, idempotencia, separación de responsabilidades y reproducibilidad: cualquier integrante del equipo puede regenerar todo el pipeline con `python -m src.cli all`.
 
-La capa Bronze conserva los datos con mínima transformación semántica. Los parsers leen archivos oficiales en CSV, agregan metadatos de ingesta (`_ingestion_timestamp`, `_source`, `_source_version`, `_extraction_method`, `_checksum_md5`) y escriben Parquet comprimido.
+### 5.1 Stack tecnológico
 
-**Tabla 2. Volumen materializado por capa**
+| Componente | Tecnología | Justificación |
+|---|---|---|
+| Lectura CSV masiva | `pandas.read_csv` con chunks | Maneja archivos de 10 GB con 8 GB de RAM. |
+| Escritura Parquet | `pyarrow.parquet.ParquetWriter` | Escritura streaming chunk-a-chunk sin acumular en RAM. |
+| Estandarización geográfica | Catálogo DIVIPOLA embebido en `src/utils/divipola_catalog.py` | Sin dependencia de API externa para mapear municipios. |
+| Detección de encoding | `chardet` | EMICRON viene en latin-1, SECOP en UTF-8; detección automática. |
+| Orquestación | Python puro (clases Orchestrator) | Sin dependencia de Airflow/Prefect para un proyecto académico. |
+| Motor analítico | pandas + PyArrow (default), PySpark opcional con auto-fallback | Suficiente para ~2 M filas; sin JVM requerido. |
+
+**¿Por qué Parquet y no CSV/SQLite?** Compresión columnar 5× (de ~10 GB CSV a ~1-2 GB Parquet), tipos preservados (sin que pandas convierta NITs a entero perdiendo ceros), lectura parcial por columnas y sin servidor.
+
+**Nota sobre ingesta:** toda la ingesta se realiza exclusivamente desde **archivos CSV locales** descargados manualmente de los portales oficiales. El proyecto no consume APIs en tiempo real para garantizar reproducibilidad offline.
+
+### 5.2 Capa Bronze — ingesta cruda
+
+#### 5.2.1 Orquestador
+
+El módulo `src/ingesta/bronze/main_ingestion.py` define `IngestionOrchestrator` con un diccionario `SOURCES_CONFIG` que asocia cada fuente con su parser:
+
+```python
+SOURCES_CONFIG = {
+    "cnpv":         {"parser": parse_cnpv_csv},
+    "secop_i":      {"parser": parse_secop_i_csv},
+    "secop_ii":     {"parser": parse_secop_csv},
+    "emicron":      {"parser": parse_emicron_csv},
+    "proyecciones": {"parser": parse_proyecciones_csv},
+}
+```
+
+Para cada fuente: verifica si existe Parquet previo (skip salvo `--force`), ejecuta el parser, valida con `bronze_validator.py` y emite reporte en `documentacion_tecnica/BRONZE_VALIDATION_REPORT.md`.
+
+#### 5.2.2 Parsers SECOP I y SECOP II
+
+Ambos parsers (`parser_csv_secop_i.py`, `parser_csv_secop.py`) siguen el patrón:
+
+```python
+for chunk in pd.read_csv(
+    input_path,
+    chunksize=250_000,
+    sep=",",
+    dtype=str,
+    keep_default_na=False,
+    low_memory=False,
+    encoding="utf-8",
+    on_bad_lines="warn",
+):
+    chunk["_ingestion_timestamp"] = datetime.now().isoformat()
+    chunk["_source"] = "secop_ii_csv"
+    chunk["_checksum_md5"] = pd.util.hash_pandas_object(chunk).astype(str)
+    table = pa.Table.from_pandas(chunk)
+    writer.write_table(table)
+```
+
+Decisiones críticas:
+
+- `dtype=str`: la tipificación ocurre en Silver. Evita que pandas interprete montos como `float` y pierda precisión, o que recorte ceros a la izquierda de NITs.
+- `keep_default_na=False`: algunos campos legítimamente contienen la cadena "NA"; sin este flag se convertirían a `NaN`.
+- `on_bad_lines="warn"`: los CSV de SECOP tienen ocasionalmente comillas desbalanceadas. Se salta la línea y se emite advertencia en lugar de abortar la ingesta.
+
+#### 5.2.3 Parser CNPV
+
+CNPV tiene estructura jerárquica (carpetas por departamento, archivos por módulo censal `1VIV`, `2HOG`, `3FALL`, `5PER`, `MGN`). El parser hace descubrimiento por glob, detecta separador (`;` vs `,`) leyendo la primera línea y genera un Parquet por módulo: `cnpv_1viv_raw.parquet`, `cnpv_2hog_raw.parquet`, etc.
+
+#### 5.2.4 Parser EMICRON
+
+El más complejo por heterogeneidad: busca carpetas `EMICRON YYYY` (2019-2024), detecta encoding por archivo con `chardet` sobre muestra de 100 KB, detecta separador analizando primeras 10 líneas y normaliza nombres con acentos/espacios a snake_case.
+
+#### 5.2.5 Parser Proyecciones
+
+Lee el CSV oficial DANE (separador `;`), preserva área y departamento, escribe `proyecciones_censo_raw.parquet`.
+
+#### 5.2.6 Metadatos de trazabilidad Bronze
+
+Cada Parquet de Bronze incluye:
+
+- `_ingestion_timestamp`: momento exacto de la ingesta.
+- `_source`: identificador (`secop_ii_csv`, `dane_cnpv`, etc.).
+- `_source_version`: versión del dataset.
+- `_extraction_method`: `CSV_LOCAL_PARSER`.
+- `_checksum_md5`: hash por fila o por lote.
+
+### 5.3 Configuración y resolución de rutas
+
+#### 5.3.1 Estrategia de búsqueda
+
+`src/config/settings.py` resuelve rutas con esta jerarquía:
+
+```python
+candidate_paths = [
+    PROJECT_ROOT / "Datos",
+    PROJECT_ROOT.parent / "Datos",
+    PROJECT_ROOT.parent.parent / "Datos",
+]
+```
+
+Para SECOP I y II usa glob patterns para no atarse al nombre exacto del archivo (incluye fecha de descarga):
+
+```python
+SECOP_I_CSV_PATH = _resolve_glob_path(datos_folder, "SECOP_I_-_Procesos_de_Compra*.*csv")
+SECOP_CSV_PATH   = _resolve_glob_path(datos_folder, "SECOP_II_-_Contratos_Electr*.*csv")
+```
+
+Las rutas pueden sobrescribirse vía `.env`: `SECOP_CSV_PATH`, `SECOP_I_CSV_PATH`, `CNPV_ROOT_DIR`, `EMICRON_CSV_PATH`, `PROYECCIONES_CENSO_PATH`. Umbrales de calidad configurables: `NULL_THRESHOLD_WARNING=0.5`, `NULL_THRESHOLD_BLOCKING=0.9`.
+
+#### 5.3.2 Validador previo
+
+Antes de correr Bronze por primera vez se ejecuta:
+
+```bash
+python -m src.validadores.verificar_datos
+```
+
+Verifica que exista `Datos/` en alguna de las tres ubicaciones candidatas, que estén las subcarpetas (`CENSO 2018 dep/`, `EMICRON 2024/`) y que existan los CSV de SECOP I, SECOP II y proyecciones. Si todo aparece marcado `OK`, la ingesta debería pasar; en caso contrario, hay que mover `Datos/` o configurar `.env`.
+
+### 5.4 Capa Silver — limpieza y estandarización
+
+#### 5.4.1 Patrón general
+
+`src/transformacion/silver/main_transformation.py` ejecuta un cleaner por fuente; cada cleaner: (1) lee Parquet de Bronze, (2) normaliza texto (NFKC + eliminación de caracteres de control), (3) estandariza nombres a `snake_case`, (4) tipifica (`float64` para montos, `string` con `zfill(5)` para DIVIPOLA, `datetime` para fechas), (5) estandariza geográficamente, (6) agrega a municipio-año (o depto-año en EMICRON/Proyecciones) y (7) escribe a `data/silver/`.
+
+#### 5.4.2 Módulos compartidos
+
+- **`transform/clean_text.py`** — Normalización Unicode `unicodedata.normalize('NFKC', text)`, eliminación de caracteres de control con `re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', text)`, estandarización de caso y conversión a snake_case.
+- **`transform/standardize_geo.py`** — Mapeo DIVIPOLA. SECOP I no contiene código DIVIPOLA: trae `Municipio Entidad` como texto. Se mantiene un catálogo embebido con los 1,102 municipios y un índice inverso por nombre normalizado. Se generan variantes automáticas: `Bogotá D.C.` → `["bogota dc", "bogota", "bogota d.c."]`. Si existe `data/bronze/divipola/divipola_oficial.csv`, se carga como fallback.
+- **`transform/type_cast.py`** — Esquema `PLATA_SCHEMA` con tipos PyArrow: `divipola_municipio` como `string[pyarrow]` para preservar ceros, `monto_contrato` como `float64[pyarrow]`, `ipm_total` como `float32[pyarrow]`, `total_micronegocios` como `int32[pyarrow]`, `es_economia_popular` como `bool[pyarrow]`.
+
+#### 5.4.3 Cleaner SECOP I (`clean_secop_i.py`)
+
+1. Lee todos los Parquet bajo `data/bronze/secop_i/` recursivamente.
+2. Resuelve nombres reales de columnas (con tildes y espacios) vía índice normalizado `_norm`: `UID`, `Fecha de Firma del Contrato`, `Cuantia Contrato`, `Identificacion del Contratista`, `Departamento Entidad`, `Municipio Entidad`.
+3. **Resolución de `divipola_key` por prioridad**:
+   1. `DIVIPOLA_KEY_MAPPED` (si el parser de Bronze ya lo inyectó).
+   2. `CODIGO_MUNICIPIO_ENTIDAD` cuando viene poblado.
+   3. Lookup `(_norm(departamento), _norm(municipio))` contra `DIVIPOLA_COMPLETO` con alias para Bogotá D.C. (`BOGOTA_D_C` ↔ `BOGOTA`).
+4. Limpieza monetaria colombiana: `"$1.234.567,89"` → `1234567` eliminando todo carácter no dígito.
+5. Extrae año desde `fecha_firma` intentando `DD/MM/YYYY` y luego ISO.
+6. NIT: solo dígitos, preservado como string para `COUNT(DISTINCT)` en Gold.
+7. **Filtros de calidad**: `divipola_key` debe coincidir con `^\d{5}$`; `anio_key` no nulo en rango `[2018, 2030]`.
+8. Genera dos salidas: `silver_secop_i_transaccional.parquet` (grano contrato; insumo del HHI sin doble conteo) y `silver_secop_i_agregado.parquet` (grano municipio-año con `COUNT(DISTINCT nit)`).
+
+#### 5.4.4 Cleaner SECOP II (`clean_secop_ii.py`)
+
+Mismo patrón con nombres reales propios: `ID Contrato`/`Referencia del Contrato`, `Fecha de Firma`, `Valor del Contrato`, `Documento Proveedor`. La `divipola_key` prioriza `DIVIPOLA_KEY_MAPPED` → `COD_MUNICIPIO`/`CODIGO_MUNICIPIO` → lookup `Departamento + Ciudad` con alias para Bogotá. **Importante**: `Codigo Entidad` **no es DIVIPOLA** en SECOP II (es NIT de la entidad); por eso no se usa.
+
+#### 5.4.5 Clasificación de `orden_entidad`
+
+El cálculo HHI admite dos rutas equivalentes para `orden_entidad`: lectura directa desde Silver cuando la columna está materializada, o reconstrucción desde Bronze usando los nombres oficiales (`Orden Entidad` en SECOP I, `Orden` en SECOP II) mediante la función `classify_order` en `src/features/indicador_hhi_cruce.py`. La función agrupa los valores en `NACIONAL`, `TERRITORIAL`, `OTRO` o `NO_DEFINIDO` y no imputa faltantes como territoriales.
+
+#### 5.4.6 Cleaner CNPV (`clean_cnpv.py`)
+
+**Aclaración importante:** versiones previas del informe técnico afirmaban que el cleaner extraía IPM, NBI y déficit habitacional. La revisión del código confirma que **eso no es así**:
+
+1. Lee los Parquet por módulo (viviendas, hogares, personas, MGN).
+2. Solo emite la columna geográfica `divipola_key` (línea 76 de `clean_cnpv.py`: `dfs.append(df_part[["divipola_key"]])`).
+3. Agrega a nivel municipio como conteo de población base (`poblacion_total_base`) — equivale a `COUNT(*)` sobre el módulo de personas.
+4. Genera `silver_cnpv_agregado.parquet` con `anio_key = 2018`.
+
+**Consecuencia para el HHI:** la sección demográfica del mart aporta nombres, departamentos y región vía LEFT JOIN sobre `divipola_key`, pero **no provee indicadores de pobreza** (NBI/IPM). Esto no afecta el cálculo del HHI (que solo necesita SECOP transaccional), pero sí limita cruces analíticos posteriores.
+
+#### 5.4.7 Cleaner EMICRON (`clean_emicron.py`)
+
+1. Lee todos los Parquet por año (2019-2024).
+2. Identifica variables de micronegocios, ventas, empleo.
+3. Construye `factor_expansion`: usa `F_EXP` cuando viene válido; si un año queda en cero, fusiona archivos de factores (`fex_c`/`FEX_C`; `fex_micro_dpto` como respaldo) por `(DIRECTORIO, SECUENCIA_P, SECUENCIA_ENCUESTA, año)`.
+4. Agrega a nivel **departamental** (EMICRON es encuesta muestral). DIVIPOLA para departamentos usa formato `XX000` (`05000` para Antioquia).
+5. Genera `silver_emicron_agregado.parquet`.
+
+#### 5.4.8 Cleaner Proyecciones (`clean_proyecciones.py`)
+
+Lee `proyecciones_censo_raw.parquet`, identifica columnas de año y población y genera serie temporal por departamento. **Limitación crítica:** la salida queda a granularidad **departamento-año** (códigos `XX000`); no se desagrega a municipio. Por eso `fact_demografia_municipio_anio.parquet` solo tiene valores no nulos en los códigos `XX000`. El HHI no usa esta tabla directamente (se calcula sobre el valor de los contratos), pero conviene tenerla en cuenta para indicadores per cápita complementarios.
+
+### 5.5 Sesgo crítico de atribución geográfica en SECOP ★
+
+**Advertencia obligatoria al usar cualquier indicador territorial derivado de SECOP, incluido el HHI.**
+
+En los cleaners de SECOP I y SECOP II, la `divipola_key` se construye a partir de `Municipio Entidad + Departamento Entidad` (o `Ciudad + Departamento` en SECOP II). Es decir: **el municipio del contrato es el municipio de la entidad contratante, no el municipio donde se ejecuta el contrato**.
+
+Esto produce un sesgo sistemático en favor de Bogotá D.C. (`11001`):
+
+| Año | Cuota de Bogotá en monto total |
+|---:|---:|
+| 2018 | 50.2 % |
+| 2019 | 42.6 % |
+| 2020 | 41.2 % |
+| 2021 | 47.2 % |
+| 2022 | 54.3 % |
+| 2023 | 38.0 % |
+| 2024 | 34.1 % |
+
+La razón es estructural: todas las entidades del **orden nacional** (Presidencia, ministerios, ICBF, Invías, Fuerzas Militares, agencias) tienen sede en Bogotá; SECOP registra `Municipio Entidad = "BOGOTA D.C."` para todas ellas y, en consecuencia, esos contratos quedan imputados a `11001` aunque se ejecuten en otros municipios.
+
+**Mitigación aplicada en el HHI.** El indicador segmenta el mercado por `orden_entidad`, lo que permite leer separadamente el HHI nacional (afectado por el sesgo de Bogotá) del HHI territorial (más fiel a la concentración local). Las tablas 4 y 6 reportan ambas series; cualquier interpretación municipal estricta debe priorizar `orden_entidad = TERRITORIAL`.
+
+### 5.6 Cruce SECOP I + SECOP II: deduplicación y doble conteo
+
+#### 5.6.1 Problema
+
+SECOP I y SECOP II son plataformas distintas de Colombia Compra Eficiente. Un mismo contrato puede aparecer en ambas durante la transición de procesos, y un mismo proveedor (NIT) puede tener contratos en las dos. Sumar ingenuamente las dos plataformas infla la inversión total y el conteo de proveedores.
+
+#### 5.6.2 Solución implementada (HHI + Gold)
+
+`src/features/indicador_hhi_cruce.py::load_transactions` y `src/transformacion/gold/build_facts.py::_build_fact_contratacion` aplican el mismo algoritmo:
+
+1. Concatena `silver_secop_i_transaccional.parquet` + `silver_secop_ii_transaccional.parquet`.
+2. Descarta filas con `divipola_key` o `anio_key` nulos, o con `valor_del_contrato <= 0`.
+3. **Deduplica por `id_contrato`** con `drop_duplicates(keep="first")` para que un contrato presente en ambas plataformas no infle `inversion_total`.
+4. Agrupa por las claves del análisis:
+   - HHI: `(anio_key, divipola_key, orden_entidad, nit_contratista)`.
+   - Fact contratación Gold: `(divipola_key, anio_key)` con `proveedores_unicos = nunique(nit_contratista)` para que un NIT en ambas plataformas cuente UNA sola vez.
+
+#### 5.6.3 Llave de cruce: `divipola_key` de 5 dígitos
+
+Se eligió DIVIPOLA como llave única porque (a) es el estándar oficial DANE para identificar municipios, (b) es numérico y no ambiguo (a diferencia de nombres con homónimos: "Armenia" existe en Antioquia y Quindío), (c) tiene exactamente 5 dígitos: los 2 primeros identifican departamento, los 3 últimos municipio, y (d) se estandariza con `str.zfill(5)` para garantizar ceros a la izquierda.
+
+#### 5.6.4 Tipos de join utilizados en el mart Gold
+
+| Join | Tablas | Tipo | Justificación |
+|---|---|---|---|
+| SECOP I + SECOP II → `fact_contratacion` | UNION + GROUP BY | Unión vertical + agregación con deduplicación | Evitar doble conteo de contratos y NITs presentes en ambas plataformas. |
+| `fact_contratacion` + `dim_territorio` | LEFT JOIN on `divipola_key` | Left | No perder contratos aunque el municipio no esté en catálogo. |
+| `fact_contratacion` + `dim_tiempo` | LEFT JOIN on `anio_key` | Left | Enriquecer con atributos temporales. |
+| `fact_censo` → mart | LEFT JOIN on `divipola_key` (sin año) | Broadcast | CNPV 2018 es snapshot fijo; se propaga a todos los años. |
+| `fact_micronegocios` + mart | LEFT JOIN on `(divipola_key, anio_key)` | Left | EMICRON es departamental; solo el agregado `XX000` tiene valor. |
+| `fact_demografia` + mart | LEFT JOIN on `(divipola_key, anio_key)` | Left | Proyecciones DANE departamentales. |
+
+### 5.7 Restricciones legales del cruce
+
+El DANE opera bajo **secreto estadístico** (Ley 79 de 1993):
+
+- **No** se puede cruzar el NIT de proveedores SECOP directamente con microdatos censales del DANE.
+- Solo se permiten **agregaciones geográficas** (municipio o departamento).
+- El cruce es siempre SECOP(municipio) ↔ DANE(municipio), nunca SECOP(proveedor) ↔ DANE(persona).
+
+El cálculo del HHI no requiere ni propone ningún cruce a nivel de persona; usa exclusivamente la información transaccional pública de SECOP I + II.
+
+### 5.8 Capa Gold — modelo estrella y datamart
+
+#### 5.8.1 Dimensiones
+
+- **`dim_tiempo`** (`build_dim_tiempo`): años 2018-2029 con atributos `es_anio_electoral_presidencial`, `es_anio_electoral_regional`, `es_pandemia`. PK `anio_key`.
+- **`dim_territorio`** (`build_dim_territorio`): base de 1,102 municipios DIVIPOLA, enriquecida escaneando todos los Parquet de Silver para detectar `divipola_key` fuera de catálogo. Códigos `XX000` se marcan como "Agregado departamental"; municipios no catalogados como "Municipio sin catalogar" conservando el departamento. PK `divipola_key`.
+
+#### 5.8.2 Tablas de hechos
+
+| Fact | Fuente Silver | Grano | Campos |
+|---|---|---|---|
+| `fact_contratacion` | SECOP I + II transaccionales | municipio-año | procesos, inversión, proveedores únicos |
+| `fact_censo` | CNPV 2018 | municipio (año fijo 2018) | población base |
+| `fact_micronegocios` | EMICRON | departamento-año | volumen expandido |
+| `fact_demografia` | Proyecciones DANE | departamento-año | población proyectada |
+
+#### 5.8.3 Datamart OBT (`build_mart.py`)
+
+1. **Spine**: pares `(divipola_key, anio_key)` que aparecen en al menos un fact real, acotados al rango de `dim_tiempo` (2018-2029). No es producto cartesiano.
+2. **Inclusión de filas solo-censo**: municipios con dato en `fact_censo` se cruzan con los años existentes para no perder cobertura.
+3. LEFT JOIN secuencial con `dim_territorio`, `dim_tiempo`, `fact_contratacion`, `fact_micronegocios`, `fact_demografia`.
+4. **Broadcast `fact_censo`** por `divipola_key` (sin año) para propagar `poblacion_censo_2018`.
+
+**Indicadores derivados en el mart**:
+
+- `indicador_inversion_per_capita = inversion_total_monto / poblacion`.
+- `indicador_densidad_micronegocios = volumen_micronegocios_exp / poblacion`.
+
+Donde `poblacion` toma `poblacion_censo_2018` cuando es > 0 y cae a `poblacion_total_proyectada` en otros casos.
+
+**Flags de trazabilidad**: `tiene_componente_social = (poblacion_total_proyectada > 0) | (poblacion_censo_2018 > 0)`; `tiene_componente_economico = (inversion_total_monto > 0) | (volumen_micronegocios_exp > 0)`.
+
+**Versionamiento**: se generan `marts/version_YYYYMMDD/` y `marts/latest/`.
+
+### 5.9 Volumen materializado y validación
+
+#### 5.9.1 Tabla 2. Volumen por capa
 
 | Artefacto | Ruta | Filas | Columnas | Cobertura temporal | Cobertura territorial |
 |---|---|---:|---:|---|---:|
@@ -131,33 +402,12 @@ La capa Bronze conserva los datos con mínima transformación semántica. Los pa
 | Gold mart latest | `data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet` | 13,860 | 22 | 2018-2029 | 1,155 DIVIPOLA |
 | HHI tabla maestra | `data/HHI_CRUCE_SECOP_DANE_RESULTADOS_final.csv` | 11,792 | 12 | 2018-2026 | 1,093 DIVIPOLA |
 
-### 5.2 Limpieza Silver
+#### 5.9.2 Validación por capa
 
-En SECOP I y SECOP II se aplican reglas homogéneas:
-
-- Homologación de `id_contrato`.
-- Parseo de fecha de firma y derivación de `anio_key`.
-- Parseo monetario colombiano de `valor_del_contrato`.
-- Limpieza de `nit_contratista` a dígitos.
-- Normalización de `divipola_key` a cinco dígitos.
-- Clasificación de `orden_entidad` en `NACIONAL`, `TERRITORIAL`, `OTRO` y `NO_DEFINIDO`.
-- Escritura de salidas transaccionales y agregadas.
-
-El cálculo HHI acepta dos rutas equivalentes para `orden_entidad`: lectura directa desde Silver cuando la columna está materializada, o reconstrucción desde Bronze usando los nombres oficiales de cada catálogo (`Orden Entidad` en SECOP I y `Orden` en SECOP II). Esta regla mantiene reproducibilidad entre corridas de pipeline y artefactos transaccionales ya materializados.
-
-En CNPV se agregan microdatos de personas a nivel territorial. En EMICRON se construye `factor_expansion`: se usa `F_EXP` cuando está disponible y válido; cuando los módulos de identificación no contienen expansión útil, se fusionan archivos de factores (`fex_c`, `FEX_C`, `fex_micro_dpto`) por llaves de encuesta y año. La agregación oficial de EMICRON se conserva a grano departamento-año para evitar replicar estimaciones departamentales en cada municipio.
-
-### 5.3 Integración Gold y mart
-
-La capa Gold construye:
-
-- `fact_contratacion_municipio_anio`: SECOP I + SECOP II por municipio-año.
-- `fact_micronegocios_municipio_anio`: EMICRON expandido por departamento-año.
-- `fact_demografia_municipio_anio`: proyecciones DANE por departamento-año.
-- `fact_censo_municipio`: población CNPV 2018.
-- Mart final `mart_desarrollo_social_economico_municipio_anio.parquet`.
-
-La contratación se integra desde transaccionales mediante unión y deduplicación por `id_contrato`; el conteo de proveedores se calcula como `COUNT(DISTINCT nit_contratista)` sobre la unión. El mart conserva el grano natural de cada fuente: las estimaciones departamentales de EMICRON y proyecciones no se distribuyen artificialmente a municipios.
+- **Bronze (`bronze_validator.py`)** — verifica existencia de Parquet, cuenta registros y columnas, detecta nulos por encima de umbral (50 % warning, 90 % blocking), emite `documentacion_tecnica/BRONZE_VALIDATION_REPORT.md`.
+- **Silver (`run_silver.py`)** — verifica completitud de claves primarias, detecta duplicados en `(divipola_key, anio_key)`, emite `documentacion_tecnica/SILVER_DATA_QUALITY_REPORT.md`.
+- **Gold (`run_gold.py`)** — valida integridad referencial entre facts y dimensiones, verifica unicidad de FK-set, emite `documentacion_tecnica/GOLD_VALIDATION_REPORT.md`.
+- **HHI (`tests/test_indicador_hhi_cruce.py`)** — confirma que `HHI` queda en rango `[0, 10000]`, que mercados con un solo proveedor producen exactamente 10,000 y que las agregaciones por año/orden/departamento son consistentes con la tabla maestra.
 
 ---
 
@@ -384,13 +634,26 @@ El indicador debe interpretarse con prudencia. El HHI mide concentración del va
 
 ## 11. Limitaciones
 
-- El análisis usa el municipio asociado al registro SECOP; esto puede representar el lugar de la entidad contratante, no necesariamente el lugar exacto de ejecución del contrato.
-- El HHI se basa en valor adjudicado, no en número de oferentes ni competencia efectiva por proceso.
-- La clasificación `NO_DEFINIDO` conserva faltantes de origen y no se imputa.
-- EMICRON y proyecciones tienen grano departamental; se conservan en ese nivel para evitar duplicación artificial.
-- Los resultados 2026 dependen del corte disponible en la copia local de datos.
-- El mart socioeconómico cubre 2018-2029, mientras el HHI se limita a 2018-2026 porque depende de contratación observada.
-- Los datos fuente no se versionan completos en Git por tamaño; la trazabilidad se mantiene mediante scripts, rutas, hashes y reportes.
+Limitaciones específicas del indicador HHI:
+
+1. **Sesgo geográfico de SECOP** *(ampliado en §5.5)*. `divipola_key` representa el municipio de la *entidad contratante*, no del lugar de ejecución. Bogotá D.C. acumula 34-55 % del monto anual por ser sede del orden nacional. Cualquier estadístico territorial sobre SECOP debe reportarse con la aclaración explícita y, preferiblemente, segmentado por `orden_entidad`.
+2. **Concentración del valor, no de competencia**. El HHI mide concentración sobre el valor adjudicado, no el número de oferentes por proceso, la calidad de la competencia, la modalidad contractual ni la pluralidad real de propuestas.
+3. **`NO_DEFINIDO` no imputado**. Los faltantes de `orden_entidad` se conservan tal como vienen de origen, no se imputan como territorial.
+4. **Granularidad departamental de EMICRON y proyecciones**. Estas fuentes se conservan a su grano natural (departamento-año) para evitar duplicación artificial al desagregar a municipio. No intervienen en la fórmula del HHI.
+
+Limitaciones heredadas del pipeline Medallion:
+
+5. **Catálogo DIVIPOLA embebido**. El diccionario incrustado en `standardize_geo.py` solo cubre ~200 municipios (Antioquia y Valle); el catálogo completo está en `utils/divipola_catalog.py` con fallback a CSV oficial.
+6. **EMICRON es muestral, no censal**. Los datos de micronegocios son estimaciones expandidas con factores, no conteos exactos.
+7. **SECOP I sin DIVIPOLA directo**. El mapeo por nombre de municipio puede fallar para nombres ambiguos o con errores de digitación. Los alias actuales solo cubren Bogotá D.C.; otros homónimos se resuelven correctamente porque el lookup requiere `(departamento, municipio)`.
+8. **CNPV no calcula NBI ni IPM** *(documentado en §5.4.6)*. `clean_cnpv.py` solo emite `divipola_key` y un conteo poblacional; los indicadores de pobreza no existen en el pipeline. No afecta el HHI, pero limita cruces analíticos posteriores.
+9. **`poblacion_total_proyectada = 0` en el mart municipal** *(documentado en §5.4.8)*. Las proyecciones DANE están a granularidad departamento-año. Los indicadores per cápita usan `poblacion_censo_2018` propagado como constante; las variaciones interanuales reflejan el numerador (monto), no la dinámica demográfica.
+
+Limitaciones operativas:
+
+10. **Cobertura temporal del HHI**. El HHI se limita a 2018-2026 porque depende de contratación observada; el mart cubre 2018-2029. Los resultados 2026 dependen del corte disponible en la copia local de datos.
+11. **Datos fuente no versionados**. Los CSV originales (~20 GB combinados) no se versionan en Git por tamaño; la trazabilidad se mantiene con scripts, rutas, hashes y reportes.
+12. **`fillna(0)` en agregados de contratación**. El cleaner SECOP genera `proveedores_unicos = 0` para municipios sin contratos en un año dado. Al calcular medidas de concentración (Gini, HHI complementarios) hay que filtrar `monto > 0` antes para no inflar artificialmente la desigualdad. El HHI principal de este informe ya aplica este filtro vía `valor_del_contrato > 0` en §6.3.
 
 ---
 
@@ -490,12 +753,106 @@ HHI = sum(participacion_sq)
 
 | Componente | Ruta |
 |---|---|
+| CLI orquestador | `src/cli.py` |
+| Configuración centralizada | `src/config/settings.py` |
+| Validador previo de datos | `src/validadores/verificar_datos.py` |
 | Ingesta SECOP I | `src/ingesta/bronze/parsers/parser_csv_secop_i.py` |
 | Ingesta SECOP II | `src/ingesta/bronze/parsers/parser_csv_secop.py` |
+| Ingesta CNPV | `src/ingesta/bronze/parsers/parser_csv_cnpv.py` |
 | Ingesta EMICRON | `src/ingesta/bronze/parsers/parser_csv_emicron.py` |
+| Ingesta Proyecciones | `src/ingesta/bronze/parsers/parser_csv_proyecciones.py` |
+| Validador Bronze | `src/ingesta/bronze/validators/bronze_validator.py` |
+| Normalización de texto | `src/transformacion/transform/clean_text.py` |
+| Estandarización geográfica | `src/transformacion/transform/standardize_geo.py` |
+| Tipificación PyArrow | `src/transformacion/transform/type_cast.py` |
 | Limpieza SECOP I | `src/transformacion/silver/cleaners/clean_secop_i.py` |
 | Limpieza SECOP II | `src/transformacion/silver/cleaners/clean_secop_ii.py` |
+| Limpieza CNPV | `src/transformacion/silver/cleaners/clean_cnpv.py` |
 | Limpieza EMICRON | `src/transformacion/silver/cleaners/clean_emicron.py` |
-| Construcción Gold | `src/transformacion/gold/build_facts.py`, `src/transformacion/gold/build_mart.py` |
+| Limpieza Proyecciones | `src/transformacion/silver/cleaners/clean_proyecciones.py` |
+| Construcción dimensiones | `src/transformacion/gold/build_dimensions.py` |
+| Construcción de facts | `src/transformacion/gold/build_facts.py` |
+| Construcción del mart | `src/transformacion/gold/build_mart.py` |
+| Catálogo DIVIPOLA | `src/utils/divipola_catalog.py` |
+| Cálculo del HHI | `src/features/indicador_hhi_cruce.py` |
+| Reporte HHI HTML | `scripts/generar_graficas_hhi.py` |
+| Infografía HHI | `scripts/generar_infografia_hhi.py` |
+
+### Anexo E. Decisiones técnicas y alternativas descartadas
+
+| Decisión adoptada | Alternativa descartada | Razón |
+|---|---|---|
+| Pandas + PyArrow (default) | DuckDB | Dependencia extra sin beneficio claro; eliminado en refactorización previa. |
+| PySpark opcional con fallback PyArrow | PySpark obligatorio o PySpark eliminado | `spark_session.py` permite escalar si hay JVM sin romper entornos sin Java. |
+| CSV local (descarga manual) | API Socrata en tiempo real | Dependencia de red, límites de registros, no reproducible offline. |
+| Parquet con compresión Snappy | CSV plano | Compresión 5×, tipos preservados, lectura columnar. |
+| Catálogo DIVIPOLA embebido | Geocodificación vía API | Reproducibilidad offline, velocidad, determinismo. |
+| LEFT JOIN (preservar SECOP) | INNER JOIN | No perder contratos de municipios sin datos DANE. |
+| `COUNT(DISTINCT nit)` sobre UNION + dedup por `id_contrato` | `SUM` de proveedores por plataforma | Evita doble conteo de contratos y NITs presentes en SECOP I y II. |
+| Spine basada en facts reales | Producto cartesiano territorio × tiempo | Evita 13K+ filas vacías sin información. |
+| Censo como broadcast (sin año) | Censo como fact con año | CNPV 2018 es snapshot fijo; no varía por año. |
+| Mercado HHI = `(anio, divipola, orden_entidad)` | Mercado HHI = `(anio, divipola)` agregado | Segmenta el sesgo de Bogotá del orden nacional y permite lectura territorial limpia. |
+
+### Anexo F. Diagrama del flujo de datos
+
+```text
+CSV SECOP I (~10 GB)   → parser_csv_secop_i  → bronze/secop_i/*.parquet
+CSV SECOP II (~9.6 GB) → parser_csv_secop    → bronze/secop_ii/*.parquet
+Carpetas CNPV          → parser_csv_cnpv     → bronze/cnpv/*.parquet
+Carpetas EMICRON       → parser_csv_emicron  → bronze/emicron/**/*.parquet
+CSV Proyecciones       → parser_csv_proyecc. → bronze/proyecciones/*.parquet
+        |
+        v   Silver: limpieza + estandarización geográfica + agregación
+        |
+silver/silver_secop_i_{transaccional|agregado}.parquet
+silver/silver_secop_ii_{transaccional|agregado}.parquet
+silver/silver_cnpv_agregado.parquet
+silver/silver_emicron_agregado.parquet
+silver/silver_proyecciones_agregado.parquet
+        |
+        v   Gold: modelo estrella + mart
+        |
+gold/dim_tiempo.parquet
+gold/dim_territorio.parquet
+gold/fact_contratacion_municipio_anio.parquet  ← UNION dedup(SECOP I + II)
+gold/fact_censo_municipio.parquet              ← CNPV 2018
+gold/fact_micronegocios_municipio_anio.parquet ← EMICRON
+gold/fact_demografia_municipio_anio.parquet    ← Proyecciones
+        |
+        v   Mart analítico (OBT)
+        |
+gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+        |
+        v   Indicador HHI (src/features/indicador_hhi_cruce.py)
+        |
+data/HHI_CRUCE_SECOP_DANE_RESULTADOS_final.csv
+data/hhi_por_anio.csv | hhi_por_nivel.csv | hhi_por_departamento.csv | hhi_por_municipio.csv
+```
+
+### Anexo G. Ejecución end-to-end
+
+```bash
+# Validador previo
+python -m src.validadores.verificar_datos
+
+# Pipeline completo
+python -m src.cli all
+
+# Capa por capa
+python -m src.cli bronze
+python -m src.cli silver
+python -m src.cli gold
+
+# Cálculo HHI desde Silver transaccional
+python -m src.features.indicador_hhi_cruce
+
+# Reporte HTML, figuras e infografía
+python scripts/generar_graficas_hhi.py
+python scripts/generar_infografia_hhi.py
+```
+
+### Anexo H. Resumen de las correcciones documentales aplicadas
+
+Versiones previas de la documentación afirmaban que `clean_cnpv.py` extraía NBI, IPM y déficit habitacional. La revisión del código confirmó que esa afirmación era incorrecta y ahora el informe lo aclara explícitamente (§5.4.6). Asimismo, se incorpora en este informe el sesgo de atribución geográfica de SECOP (§5.5), la lógica de deduplicación cross-plataforma (§5.6), las restricciones legales del DANE (§5.7), y los caveats consolidados de §11.
 | Cálculo HHI | `src/features/indicador_hhi_cruce.py` |
 | Reporte HHI | `scripts/generar_graficas_hhi.py` |
