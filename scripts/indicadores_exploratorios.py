@@ -33,7 +33,7 @@ Path("outputs/graficas").mkdir(parents=True, exist_ok=True)
 # ─────────────────────────────────────────────
 # 1. CARGAR EL OBT
 # ─────────────────────────────────────────────
-OBT_PATH = Path("datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet")
+OBT_PATH = Path("data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet")
 
 print("📦 Cargando OBT...")
 obt = pd.read_parquet(OBT_PATH)

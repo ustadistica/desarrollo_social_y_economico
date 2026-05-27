@@ -2,17 +2,20 @@
 .env
 pipeline/.env
 
-# Archivos fuente y crudos
-datos/
-modelo_estrella_duckdb/*.duckdb
-modelo_estrella_duckdb/*.db
-modelo_estrella_pyspark/
+# Datos crudos pesados (Bronze/Silver/Gold se reconstruyen con el pipeline)
+data/bronze/
+data/silver/
+data/gold/
+data/raw/
+data/interim/
+data/processed/
+data/dane_2018/
+
+# Formatos comprimidos pesados sueltos
 *.duckdb
 *.parquet
-*.db
 
-# Artefactos y compilados
-artifacts/
+# Compilados
 __pycache__/
 *.pyc
 *.egg-info/
@@ -29,6 +32,17 @@ spark-warehouse/
 .qwen/
 .vscode/
 .idea/
+.claude/
 
 .venv/
 scratch/
+
+# Temporales de pytest
+pytest_tmp_*/
+.pytest_cache/
+
+# Bases de datos locales
+modelo_estrella_duckdb/*.duckdb
+modelo_estrella_duckdb/*.db
+modelo_estrella_pyspark/
+*.db

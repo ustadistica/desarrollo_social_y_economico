@@ -220,7 +220,7 @@ Se usa la escala estándar:
 
 **Figura 2. Evolución anual del HHI promedio**
 
-![Evolución anual del HHI](artifacts/hhi/hhi_tendencia_anual.png)
+![Evolución anual del HHI](../artifacts/hhi/hhi_tendencia_anual.png)
 
 **Tabla 3. HHI anual 2018-2026**
 
@@ -242,7 +242,7 @@ La serie anual muestra concentración promedio baja a moderada. La mediana es me
 
 **Figura 3. HHI promedio por orden de entidad**
 
-![HHI por orden de entidad](artifacts/hhi/hhi_por_nivel.png)
+![HHI por orden de entidad](../artifacts/hhi/hhi_por_nivel.png)
 
 **Tabla 4. HHI por orden nacional y territorial**
 
@@ -273,7 +273,7 @@ La contratación nacional presenta HHI promedio mayor que la territorial. Esta d
 
 **Figura 4. Distribución del HHI municipio-año-orden**
 
-![Distribución municipal del HHI](artifacts/hhi/hhi_distribucion_municipal.png)
+![Distribución municipal del HHI](../artifacts/hhi/hhi_distribucion_municipal.png)
 
 La tabla maestra contiene **11,792 mercados**. El HHI mínimo observado es **18.81**, el máximo es **10,000.00** y no hay mercados fuera del rango teórico. La cobertura geográfica del cruce es completa para los mercados HHI: **0 registros sin nombre de departamento**.
 

@@ -29,11 +29,12 @@ class Settings:
         self.PIPELINE_ROOT = Path(__file__).parent.parent
         
         # Rutas de capas de datos
-        self.DATOS_ROOT = self.PROJECT_ROOT / "data"
+        self.DATA_ROOT = self.PROJECT_ROOT / "data"
+        self.DATOS_ROOT = self.DATA_ROOT  # Alias de compatibilidad; la ruta canonica es data/.
         # Capas de datos (Medallion Architecture)
-        self.BRONZE_PATH = self.DATOS_ROOT / "bronze"
-        self.SILVER_PATH = self.DATOS_ROOT / "silver"
-        self.GOLD_PATH = self.DATOS_ROOT / "gold"
+        self.BRONZE_PATH = self.DATA_ROOT / "bronze"
+        self.SILVER_PATH = self.DATA_ROOT / "silver"
+        self.GOLD_PATH = self.DATA_ROOT / "gold"
         
         # Alias legacy para compatibilidad
         self.PLATA_PATH = self.SILVER_PATH

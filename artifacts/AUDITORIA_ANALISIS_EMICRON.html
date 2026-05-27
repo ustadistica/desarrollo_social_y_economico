@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Guía de Auditoría — Análisis EMICRON</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Segoe UI, Arial, sans-serif; background: #f0f2f5; color: #212121; font-size: 15px; }
+.portada { background: linear-gradient(135deg, #0D1B6E, #283593); color: white; padding: 70px 60px; text-align: center; }
+.portada h1 { font-size: 2.2em; font-weight: 800; margin-bottom: 14px; line-height: 1.3; }
+.portada h2 { font-size: 1.1em; font-weight: 400; opacity: 0.85; margin-bottom: 20px; font-style: italic; }
+.badge { display: inline-block; background: rgba(255,255,255,0.18); border-radius: 20px; padding: 6px 18px; margin: 4px; font-size: 0.88em; }
+.container { max-width: 980px; margin: 0 auto; padding: 40px 20px; }
+.section { background: white; border-radius: 14px; padding: 36px; margin-bottom: 28px; box-shadow: 0 3px 16px rgba(0,0,0,0.09); }
+.section-title { font-size: 1.4em; font-weight: 700; color: #0D1B6E; border-bottom: 3px solid #0D1B6E; padding-bottom: 10px; margin-bottom: 22px; }
+.subsection { font-size: 1.1em; font-weight: 700; color: #283593; margin: 22px 0 10px 0; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92em; }
+th { background: #1A237E; color: white; padding: 11px 14px; text-align: left; }
+td { padding: 10px 14px; border-bottom: 1px solid #e8e8e8; vertical-align: top; }
+tr:nth-child(even) { background: #f5f5f5; }
+.ok { color: #2E7D32; font-weight: bold; }
+.code { background: #1E1E1E; color: #D4D4D4; border-radius: 8px; padding: 16px 20px; margin: 12px 0; font-family: 'Courier New', monospace; font-size: 0.88em; line-height: 1.7; overflow-x: auto; }
+.code .comment { color: #6A9955; }
+.code .keyword { color: #569CD6; }
+.code .string { color: #CE9178; }
+.note { background: #FFF8E1; border-left: 5px solid #F9A825; border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-size: 0.92em; line-height: 1.7; }
+.note strong { color: #E65100; }
+.interp { background: #E8F5E9; border-left: 5px solid #2E7D32; border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-size: 0.92em; line-height: 1.7; }
+.interp strong { color: #1B5E20; }
+p { line-height: 1.75; color: #444; margin: 8px 0; }
+ul { padding-left: 22px; margin: 8px 0; }
+li { margin: 6px 0; line-height: 1.7; color: #444; }
+.footer { text-align: center; padding: 30px; color: #999; font-size: 0.82em; border-top: 1px solid #e0e0e0; margin-top: 10px; }
+.resultado { font-weight: bold; color: #0D47A1; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <h1>Guía de Auditoría<br>Análisis Exploratorio EMICRON</h1>
+  <h2>notebooks/ANALISIS_INDICADOR_EMICRON.ipynb</h2>
+  <span class="badge">EMICRON 2019-2024 — DANE</span>
+  <span class="badge">Universidad Santo Tomás</span>
+  <span class="badge">Mayo 2026</span>
+</div>
+
+<div class="container">
+
+<!-- SECCIÓN 1: OBJETIVO -->
+<div class="section">
+  <div class="section-title">1. ¿Cuál era el objetivo del código? — ¿Qué se quería calcular?</div>
+  <p>El objetivo fue <strong>caracterizar el desempeño económico de los micronegocios colombianos</strong> respondiendo 4 preguntas concretas:</p>
+  <ul>
+    <li>¿Cuál es el nivel de ingresos y rentabilidad del micronegocio colombiano típico?</li>
+    <li>¿Cómo evolucionó ese desempeño entre 2019 y 2024, incluyendo el impacto del COVID-19?</li>
+    <li>¿Existen diferencias significativas entre departamentos, tipos de persona y niveles de formalización?</li>
+    <li>¿Existe relación entre la inversión pública (SECOP) y el desempeño del micronegocio?</li>
+  </ul>
+
+  <p style="margin-top:14px;"><strong>Unidad de análisis:</strong> Micronegocio — establecimiento con hasta 9 personas ocupadas<br>
+  <strong>Cobertura:</strong> 25 departamentos | 2019-2024 | 485.612 registros validados por llave anual</p>
+
+  <table style="margin-top:16px;">
+    <tr><th>Indicador calculado</th><th>Fórmula en el código</th><th>¿Qué mide?</th></tr>
+    <tr><td>Ingreso promedio ponderado</td><td><code>wmean(VENTAS_MES_ANTERIOR, factor_expansion)</code></td><td>Ingresos representativos del sector</td></tr>
+    <tr><td>Utilidad mensual</td><td><code>VENTAS - COSTOS</code></td><td>Ganancia aproximada del micronegocio</td></tr>
+    <tr><td>Margen de utilidad</td><td><code>UTILIDAD / VENTAS × 100</code></td><td>Rentabilidad relativa</td></tr>
+    <tr><td>% Negocios rentables</td><td><code>UTILIDAD > 0</code></td><td>Proporción viable económicamente</td></tr>
+    <tr><td>% Negocios activos</td><td><code>VENTAS > 0</code></td><td>Proporción con actividad económica</td></tr>
+    <tr><td>Prima de formalización</td><td>Diferencia de medias por <code>P3000</code></td><td>Brecha de ingresos por registro mercantil</td></tr>
+  </table>
+</div>
+
+<!-- SECCIÓN 2: TESTS -->
+<div class="section">
+  <div class="section-title">2. ¿Cómo testear que el objetivo se cumplió? — Qué verificar en el código</div>
+
+  <div class="subsection">Test 1 — Carga de datos correcta</div>
+  <p>Verificar que se cargaron los 6 años de EMICRON y los 3 módulos correctos.</p>
+  <div class="code">
+    <span class="comment"># Debe mostrar exactamente estos años</span><br>
+    assert sorted(df.anio.unique().tolist()) == [2019, 2020, 2021, 2022, 2023, 2024]<br><br>
+    <span class="comment"># Debe tener estas columnas</span><br>
+    assert <span class="string">'VENTAS_MES_ANTERIOR'</span> in df.columns<br>
+    assert <span class="string">'COSTOS_MES_ANTERIOR'</span> in df.columns<br>
+    assert <span class="string">'factor_expansion'</span> in df.columns
+  </div>
+  <div class="note"><strong>Resultado esperado:</strong> 485.612 registros, 25 departamentos, 6 años, 0 duplicados por llave anual.</div>
+
+  <div class="subsection">Test 2 — Cruce de módulos correcto</div>
+  <p>Verificar que el cruce entre ventas, costos e identificación se hizo con la llave correcta.</p>
+  <div class="code">
+    <span class="comment"># La llave única de EMICRON según el diccionario DANE</span><br>
+    LLAVES = [<span class="string">'DIRECTORIO'</span>, <span class="string">'SECUENCIA_ENCUESTA'</span>, <span class="string">'SECUENCIA_P'</span>, <span class="string">'_emicron_year'</span>]<br><br>
+    <span class="comment"># No debe haber duplicados después del cruce</span><br>
+    assert df.duplicated(subset=LLAVES).sum() == 0
+  </div>
+  <div class="note"><strong>Por qué importa:</strong> Si la llave es incorrecta los registros se multiplican y los indicadores quedan inflados.</div>
+
+  <div class="subsection">Test 3 — Cálculo de utilidad correcto</div>
+  <p>Verificar que la utilidad se calculó como diferencia de ventas menos costos.</p>
+  <div class="code">
+    assert (df[<span class="string">'UTILIDAD'</span>] == df[<span class="string">'VENTAS_MES_ANTERIOR'</span>] - df[<span class="string">'COSTOS_MES_ANTERIOR'</span>]).all()<br><br>
+    <span class="comment"># No debe haber valores imposibles</span><br>
+    assert df[<span class="string">'VENTAS_MES_ANTERIOR'</span>].min() >= 0<br>
+    assert df[<span class="string">'COSTOS_MES_ANTERIOR'</span>].min() >= 0
+  </div>
+
+  <div class="subsection">Test 4 — Factor de expansión aplicado</div>
+  <p>Verificar que los promedios usan <code>factor_expansion</code> y no son simples medias aritméticas.</p>
+  <div class="code">
+    media_simple = df[<span class="string">'VENTAS_MES_ANTERIOR'</span>].mean()<br>
+    media_ponderada = wmean(df, <span class="string">'VENTAS_MES_ANTERIOR'</span>, <span class="string">'factor_expansion'</span>)<br><br>
+    <span class="comment"># Deben ser diferentes — si son iguales el factor canónico no se aplicó</span><br>
+    assert media_simple != media_ponderada
+  </div>
+  <div class="note"><strong>Por qué importa:</strong> Sin el factor canónico los resultados no son representativos. Para 2019-2020, <code>F_EXP</code> no sirve directamente y debe reemplazarse con los archivos separados de factores.</div>
+
+  <div class="subsection">Test 5 — Indicadores dentro de rangos válidos</div>
+  <div class="code">
+    assert 0.85 <= df.TIENE_VENTAS.mean() <= 1.0<br>
+    assert 0.80 <= df.ES_RENTABLE.mean() <= 1.0<br>
+    assert 0 <= df.MARGEN_PCT.median() <= 100<br>
+    assert 200_000 <= df.VENTAS_MES_ANTERIOR.median() <= 5_000_000
+  </div>
+
+  <div class="subsection">Test 6 — Prima de formalización tiene sentido</div>
+  <div class="code">
+    ing_registrado = df[df.P3000 == 1][<span class="string">'VENTAS_MES_ANTERIOR'</span>].mean()<br>
+    ing_no_registrado = df[df.P3000 == 2][<span class="string">'VENTAS_MES_ANTERIOR'</span>].mean()<br><br>
+    assert ing_registrado > ing_no_registrado<br>
+    prima = (ing_registrado - ing_no_registrado) / ing_no_registrado * 100<br>
+    assert prima > 50
+  </div>
+  <p class="resultado">Resultado obtenido: Prima = 151.9% ✅</p>
+
+  <div class="subsection">Test 7 — Pandemia visible en los datos</div>
+  <div class="code">
+    ing_2019 = wmean(df[df.anio == 2019], <span class="string">'VENTAS_MES_ANTERIOR'</span>)<br>
+    ing_2021 = wmean(df[df.anio == 2021], <span class="string">'VENTAS_MES_ANTERIOR'</span>)<br>
+    ing_2023 = wmean(df[df.anio == 2023], <span class="string">'VENTAS_MES_ANTERIOR'</span>)<br><br>
+    assert ing_2021 &lt; ing_2019 <span class="comment"># impacto pandemia</span><br>
+    assert ing_2023 &gt; ing_2019 <span class="comment"># recuperación</span>
+  </div>
+</div>
+
+<!-- SECCIÓN 3: VALIDACIÓN CONCEPTUAL -->
+<div class="section">
+  <div class="section-title">3. ¿Por qué los valores tienen sentido? — Validación conceptual</div>
+
+  <div class="subsection">92.2% negocios activos</div>
+  <div class="interp"><strong>¿Tiene sentido? ✅</strong> EMICRON encuesta micronegocios que están operando — es esperado que casi todos reporten ventas. El 7.8% restante son negocios que suspendieron actividades temporalmente durante el período de referencia.</div>
+
+  <div class="subsection">Ingreso mediano $1.2M COP/mes</div>
+  <div class="interp"><strong>¿Tiene sentido? ✅</strong> Es consistente con micronegocios informales de subsistencia en Colombia. La razón media/mediana cercana a 2.2x confirma la alta desigualdad interna — pocos negocios con ingresos altos elevan la media sin representar al típico.</div>
+
+  <div class="subsection">Margen mediano 69.2%</div>
+  <div class="interp"><strong>¿Tiene sentido? ✅</strong> Los márgenes altos son esperados porque: (a) el costo de mano de obra es el trabajo propio del dueño — no se registra como costo, (b) muchos operan desde el hogar sin arrendamiento, (c) predominan negocios de servicios con pocos insumos.</div>
+
+  <div class="subsection">Prima de formalización 161.0%</div>
+  <div class="interp"><strong>¿Tiene sentido? ✅</strong> Los negocios registrados acceden a mercados más grandes, crédito formal y contratos públicos. Consistente con literatura del BID y DANE sobre economía popular. <strong>Nota:</strong> la relación es correlacional — los negocios más grandes tienden a formalizarse, lo que explica parte de la brecha.</div>
+
+  <div class="subsection">Caída 2020-2021 y recuperación 2022</div>
+  <div class="interp"><strong>¿Tiene sentido? ✅</strong> El COVID-19 afectó desproporcionadamente a los micronegocios informales por cuarentenas y restricciones de movilidad. La recuperación hacia 2022 coincide con la reapertura económica y los programas de apoyo del gobierno colombiano.</div>
+
+  <div class="subsection">Boyacá, Bogotá y San Andrés lideran en ingresos</div>
+  <div class="interp"><strong>¿Tiene sentido? ✅</strong> Boyacá tiene fuerte actividad agroindustrial y artesanal. Bogotá es el mayor mercado del país. San Andrés tiene turismo y comercio libre de aranceles. Los tres contextos favorecen ingresos más altos en micronegocios.</div>
+</div>
+
+<!-- SECCIÓN 4: RESUMEN -->
+<div class="section">
+  <div class="section-title">4. Resumen de la Auditoría</div>
+  <table>
+    <tr><th>Test</th><th>Descripción</th><th>Estado</th></tr>
+    <tr><td>Test 1</td><td>Carga de datos correcta — 6 años, 3 módulos</td><td class="ok">✅ Cumplido</td></tr>
+    <tr><td>Test 2</td><td>Cruce de módulos con llave única correcta</td><td class="ok">✅ Cumplido</td></tr>
+    <tr><td>Test 3</td><td>Cálculo de utilidad = ventas - costos</td><td class="ok">✅ Cumplido</td></tr>
+    <tr><td>Test 4</td><td>Factor de expansión canónico aplicado</td><td class="ok">✅ Cumplido con fallback 2019-2020</td></tr>
+    <tr><td>Test 5</td><td>Indicadores en rangos económicamente válidos</td><td class="ok">✅ Cumplido</td></tr>
+    <tr><td>Test 6</td><td>Prima de formalización coherente con literatura</td><td class="ok">✅ Cumplido</td></tr>
+    <tr><td>Test 7</td><td>Impacto pandemia visible y recuperación confirmada</td><td class="ok">✅ Cumplido</td></tr>
+  </table>
+  <p style="margin-top:20px; font-size:1.1em; font-weight:bold; color:#0D47A1; text-align:center;">
+    El código cumple su objetivo y los valores son coherentes con la teoría económica y el contexto colombiano.
+  </p>
+</div>
+
+</div>
+<div class="footer">
+  Guía de auditoría elaborada sobre notebooks/ANALISIS_INDICADOR_EMICRON.ipynb<br>
+  Proyecto: Desarrollo Social y Económico — Universidad Santo Tomás | Mayo 2026
+</div>
+</body>
+</html>

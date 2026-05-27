@@ -22,7 +22,7 @@ Octavo/
 │   └── Desarrollo social y economico/
 │       └── desarrollo_social_y_economico/   ← El repositorio clonado
 │           ├── src/
-│           ├── datos/
+│           ├── data/
 │           ├── README.md
 │           └── ...
 ```
@@ -176,7 +176,7 @@ Datos/
 
 **Solución:**
 1. Asegúrate que **PRIMERO** ejecutes `python src/ingesta/run_bronze.py`
-2. Verifica que los archivos en `datos/bronze/` se crearon
+2. Verifica que los archivos en `data/bronze/` se crearon
 3. Luego ejecuta `python src/transformacion/run_silver.py`
 4. Finalmente `python src/transformacion/run_gold.py`
 
@@ -209,7 +209,7 @@ python src/transformacion/run_gold.py
 
 ### Paso 4: Usar el OBT
 ```
-datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
 ```
 
 ---
@@ -221,7 +221,7 @@ datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
 - [ ] ¿Contiene `EMICRON 2019/` a `EMICRON 2024/`?
 - [ ] ¿Contiene los 3 archivos CSV SECOP e PPED?
 - [ ] ¿Ejecutaste `python src/ingesta/run_bronze.py` primero?
-- [ ] ¿Se crearon archivos en `datos/bronze/`?
+- [ ] ¿Se crearon archivos en `data/bronze/`?
 - [ ] ¿Luego ejecutaste `run_silver.py` y `run_gold.py`?
 
 Si todas las respuestas son ✅, el pipeline debería funcionar correctamente.

@@ -11,6 +11,7 @@ Mapeo de columnas reales:
   Fecha de Firma                   -> fecha_firma
   Valor del Contrato               -> valor_del_contrato
   Documento Proveedor              -> nit_contratista
+  Orden                            -> orden_entidad
 """
 
 import logging
@@ -42,6 +43,23 @@ def _pick(idx: dict, candidates_norm: tuple) -> str | None:
         if c in idx:
             return idx[c]
     return None
+
+
+def _classify_orden_entidad(value: object) -> str:
+    raw = "" if pd.isna(value) else str(value).upper().strip()
+    if "NACIONAL" in raw:
+        return "NACIONAL"
+    if (
+        "TERRITORIAL" in raw
+        or "DISTRITO CAPITAL" in raw
+        or "AREA METROPOLITANA" in raw
+    ):
+        return "TERRITORIAL"
+    if "CORPOR" in raw or "AUTONOMA" in raw or "AUTÓNOMA" in raw:
+        return "OTRO"
+    if not raw or raw == "NAN" or "NO DEFINIDO" in raw:
+        return "NO_DEFINIDO"
+    return "OTRO"
 
 
 _MONEDA_RE = re.compile(r"[^\d\-]")
@@ -79,6 +97,7 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
         c_fecha = _pick(idx, ("FECHA_DE_FIRMA", "FECHA_DE_FIRMA_DEL_CONTRATO"))
         c_valor = _pick(idx, ("VALOR_DEL_CONTRATO", "VALOR_CONTRATO", "CUANTIA_CONTRATO"))
         c_nit = _pick(idx, ("DOCUMENTO_PROVEEDOR", "NIT_DEL_CONTRATISTA", "IDENTIFICACION_DEL_CONTRATISTA"))
+        c_orden = _pick(idx, ("ORDEN", "ORDEN_ENTIDAD"))
 
         c_divi = _pick(idx, ("DIVIPOLA_KEY_MAPPED", "DIVIPOLA_KEY"))
         c_muni_txt = _pick(idx, ("CIUDAD", "MUNICIPIO", "MUNICIPIO_ENTIDAD"))
@@ -107,7 +126,7 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
                 "columnas_disponibles": list(idx.values()),
             }
 
-        cargar = list({c for c in [c_uid, c_fecha, c_valor, c_nit,
+        cargar = list({c for c in [c_uid, c_fecha, c_valor, c_nit, c_orden,
                                     c_divi, c_muni_txt, c_dpto_txt, c_muni_cod] if c})
         dataset = ds.dataset([str(f) for f in parquet_files], format="parquet")
         df = dataset.to_table(columns=cargar).to_pandas()
@@ -147,6 +166,10 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
             "valor_del_contrato": _parse_valor(df[c_valor]),
             "nit_contratista": df[c_nit].astype(str).str.replace(r"\D", "", regex=True).str.strip(),
         })
+        if c_orden:
+            txn["orden_entidad"] = df[c_orden].map(_classify_orden_entidad)
+        else:
+            txn["orden_entidad"] = "NO_DEFINIDO"
         txn["anio_key"] = txn["fecha_firma"].dt.year.astype("Int64")
         txn["_fuente_origen"] = "SECOP_II"
 
@@ -158,7 +181,8 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
 
         silver_path.mkdir(parents=True, exist_ok=True)
         txn_out = txn[["id_contrato", "divipola_key", "anio_key", "fecha_firma",
-                       "valor_del_contrato", "nit_contratista", "_fuente_origen"]].copy()
+                       "valor_del_contrato", "nit_contratista", "orden_entidad",
+                       "_fuente_origen"]].copy()
         txn_out["anio_key"] = txn_out["anio_key"].astype(int)
         txn_out.to_parquet(out_txn, engine="pyarrow", compression="snappy", index=False)
 
@@ -191,6 +215,7 @@ def clean_secop_ii_data(bronze_path: Path, silver_path: Path, settings: Any) -> 
                 "Normalizacion nombres reales (ID Contrato, Fecha de Firma, Valor del "
                 "Contrato, Documento Proveedor). DIVIPOLA desde divipola_key_mapped o "
                 "lookup Departamento+Ciudad. NIT a solo digitos. "
+                "Orden normalizado para analisis HHI. "
                 "Output transaccional para union posterior sin doble conteo."
             ),
         }

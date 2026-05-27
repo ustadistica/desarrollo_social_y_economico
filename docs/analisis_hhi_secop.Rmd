@@ -1,6 +1,6 @@
 ---
-title: "Análisis del Índice de Concentración Herfindahl-Hirschman (HHI) en la Contratación Pública"
-author: "Consultoría de Desarrollo Social y Económico"
+title: "Analisis del Indice de Concentracion Herfindahl-Hirschman (HHI)"
+author: "Consultoria de Desarrollo Social y Economico"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -13,82 +13,74 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## 1. Introducción al HHI
+## 1. Proposito
 
-El **Índice de Herfindahl-Hirschman (HHI)** es una de las métricas económicas más prestigiosas para medir el nivel de concentración y monopolización de un mercado.
+Este documento resume la metodologia vigente para el HHI de contratacion
+publica. La fuente oficial ya no es un CSV masivo externo ni un calculo ad-hoc:
+el indicador se recalcula desde las tablas transaccionales de Silver.
 
-En el contexto del flujo estatal (**SECOP II**), aplicar esta métrica a escala municipal nos permite identificar de manera matemática qué alcaldías distribuyen su presupuesto fomentando la pluralidad de oferentes (libre competencia) y cuáles concentran todo el presupuesto público en uno o dos megacontratistas (riesgo de "roscas" o monopolización del gasto público).
+## 2. Metodologia vigente
 
----
+El calculo reproducible esta en:
 
-## 2. Metodología de Cálculo en Big Data (PySpark)
+```bash
+python -m src.features.indicador_hhi_cruce
+```
 
-Dada la masividad de los datos nacionales del SECOP (dataset de +9.6 GB), el cálculo se orquestó dividiendo la agrupación en tres etapas ("Common Table Expressions") mediante un motor distribuido:
+La formula usada es:
 
-1. **`totales_municipio`**: Sumamos los valores netos de **todos los contratos** emitidos jurídicamente por una ciudad a lo largo del tiempo. Este valor representa la "torta completa" (el 100% del mercado).
-2. **`sumas_proveedor`**: Se agrupa el valor asignado de manera consolidada a **cada NIT específico** dentro de dicho municipio. Esta es la "tajada de mercado" de cada proveedor.
-3. **Cálculo de Cuota Matemática (`hhi_calc`)**: 
-   $$ HHI = \sum_{i=1}^{n} (s_i)^2 $$  
-   Donde $s_i$ es la cuota de mercado del proveedor $i$ expresada en porcentaje (ej. 20%). Elevamos esa cuota al cuadrado y luego sumamos los cuadrados de todos los proveedores.
-   
-   - **Competencia Perfecta ($\approx 0$):** Cientos de proveedores tienen cuotas menores al 1%.
-   - **Monopolio Absoluto ($10,000$):** Un único contratista acapara el 100% de la contratación.
+$$
+HHI = \sum_i \left(\frac{valor_i}{valor_{mercado}} \times 100\right)^2
+$$
 
----
+Donde el mercado se define como:
 
-## 3. Hallazgos Nacionales del SECOP
+```text
+anio_key x divipola_key x orden_entidad
+```
 
-Se procesaron matemáticamente un total de **879 municipios** con la siguiente distribución general en la muestra:
+Reglas de calidad:
 
-- **Promedio Nacional:** 3,019.28
-- **Mediana Nacional:** 1,540.20
+- Se leen `silver_secop_i_transaccional.parquet` y
+  `silver_secop_ii_transaccional.parquet`.
+- Se filtran contratos con valor positivo, NIT valido, DIVIPOLA valido y anios
+  2018-2026.
+- Se deduplica por `id_contrato`, igual que en Gold.
+- `orden_entidad` se toma de Silver cuando exista. Si los parquets fueron
+  generados antes de esa correccion, se reconstruye desde Bronze usando los
+  nombres reales de columnas: `Orden Entidad` en SECOP I y `Orden` en SECOP II.
+- Los faltantes se conservan como `NO_DEFINIDO`; no se imputan como
+  `TERRITORIAL`.
 
-### 3.1 Los Extremos de la Cuerda
+## 3. Resultados corregidos
 
-#### 🚨 Zonas de Monopolio Contractual Absoluto (HHI = 10,000.0)
-Se detectaron **96 municipios** que operan como monopolios absolutos. Algunos de los municipios con HHI de 10,000 puro incluyen:
-- **Casabianca** (Tolima)
-- **Suaza** (Huila)
-- **Caicedo** (Antioquia)
-- **San Carlos de Guaroa**
+La tabla anual vigente queda:
 
-> **Implicación:** Durante el tiempo de corte, prácticamente todo el presupuesto fue a parar a manos de un solo oferente o consorcio. Esto representa una gran bandera roja sobre la calidad competitiva del territorio y sugiere altos riegos fiscales de contratación a dedo.
+```{r, echo=FALSE}
+read.csv("../data/hhi_por_anio.csv")
+```
 
-#### 🛡️ Zonas de Alta Democratización Competitiva (HHI < 100)
-Existen **433 municipios** (aprox. el 50% del país procesado) operando bajo niveles sanos de competición, encabezando la lista los siguientes tesoros competitivos:
-1. **Gachalá:** 36.88
-2. **Puerto Berrío:** 61.90
-3. **Monterrey:** 64.07
-4. **Villeta:** 64.61
-5. **El Colegio:** 91.97
+La tabla por orden de entidad queda:
 
-> **Implicación:** Matemáticamente exquisito. En estos territorios las arcas del presupuesto público están rotando efectivamente entre docenas o cientos de entidades locales distintas, irrigando la economía a múltiples capas de trabajadores en lugar de asfixiarla en macro-consorcios.
+```{r, echo=FALSE}
+read.csv("../data/hhi_por_nivel.csv")
+```
 
-### 3.2 Hallazgos Sorprendentes (Insights de Alto Impacto)
+## 4. Interpretacion
 
-Tras el procesamiento masivo de los 10 GB del SECOP, emergieron las siguientes particularidades a nivel macroeconómico:
+El recalculo no respalda la conclusion anterior de monopolizacion nacional en
+2024-2026. Con la Silver actual, el HHI promedio anual queda entre 1,040 y
+1,484 para 2018-2026. Si se separa por orden, el componente nacional presenta
+mayor concentracion que el territorial, pero no un HHI cercano a 10,000 de forma
+generalizada.
 
-#### 🏙️ 1. El Mito de la "Rosca" en las Grandes Capitales
-Contrario al imaginario popular de carteles monolíticos centralizados, matemáticamente las urbes gigantes están altamente democratizadas. 
-- **Bogotá (HHI 245.85)** 
-- **Medellín (HHI 312.09)**
-El volumen abrumador de dinero (hospitales, puentes, infraestructura, tecnología) se atomiza obligatoriamente en miles de proveedores distintos. La tajada por cada contratista es un grano de arena frente al presupuesto total; "el Gran Monopolio" contractual no gobierna contablemente dentro de las urbes principales.
+El analisis territorial debe hacerse sobre la tabla maestra:
 
-#### 🌘 2. Las Sombras de las Regiones (El 40% del País)
-Si el límite de alerta del Departamento de Justicia de EE.UU (U.S. DOJ) estipula que cualquier mercado con **HHI superior a 2,500** es un mercado "Altamente Concentrado", entonces los números arrojan una alerta nacional:
-**¡349 municipios en Colombia (aprox. el 40% del país procesado) superaron este umbral crítico!**
-Entre más nos alejamos del centro hacia las periferias (ej: **Leticia tiene un HHI agudo de 6,223** y **Quibdó de 2,408**), la pluralidad de oferentes desaparece sistemáticamente. 
+```text
+data/HHI_CRUCE_SECOP_DANE_RESULTADOS_final.csv
+```
 
-#### 🍰 3. El "Club de la Única Torta" (Los 96 Monopolios Perfectos)
-La estadística más escalofriante extraída del Big Data: la tabla arrojó exactamente **96 municipios colombianos con un HHI perfecto de 10,000.0**. 
-Lugares como **Casabianca**, **Suaza** o **Caicedo**. Expresado contablemente en el SECOP, alcaldías de ese talante lograron históricamente concentrar y transferir el **100% del presupuesto de contratación a un (1) sólo proveedor o consorcio**.
+Ese archivo contiene una fila por mercado municipio-anio-orden y conserva
+`total_contratos`, `total_proveedores`, `inversion_total`, `HHI` y el nivel de
+concentracion.
 
----
-
-## 4. Próximos Pasos (Correlaciones Económicas)
-
-Se postula una hipótesis central para el modelo econométrico a seguir cruzando el DANE y el SECOP:
-
-**"Los municipios con alto índice de concentración en la contratación pública (HHI \> 8000) presentan mayores niveles en el Índice de Pobreza Multidimensional (IPM), demostrando que la falta de libre pluralidad de oferentes frena el impacto dinamizador de la inversión local y entorpece las externalidades positivas."**
-
-El set de datos generado `HHI_MASIVO_RESULTADOS.csv_final.csv` actuará como un insumo analítico clave para los modelos Logit/Poisson o de Mínimos Cuadrados (OLS).

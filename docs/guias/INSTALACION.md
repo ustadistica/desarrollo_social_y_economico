@@ -39,7 +39,7 @@ Octavo/
 │   └── Desarrollo social y economico/
 │       └── desarrollo_social_y_economico/    ← El repositorio clonado
 │           ├── src/
-│           ├── datos/
+│           ├── data/
 │           └── ...
 ```
 
@@ -120,10 +120,10 @@ python src/transformacion/run_silver.py
 python src/transformacion/run_gold.py
 ```
 
-Cada paso crea carpetas en `datos/`:
-- `datos/bronze/` — Datos crudos en Parquet
-- `datos/plata/` — Datos limpios y validados
-- `datos/oro/` — Tablas de hechos y OBT final
+Cada paso crea carpetas en `data/`:
+- `data/bronze/` — Datos crudos en Parquet
+- `data/silver/` — Datos limpios y validados
+- `data/gold/` — Tablas de hechos y OBT final
 
 ### Opción B: Paso a Paso (Recomendado si es la primera vez)
 
@@ -135,22 +135,22 @@ python -m src.validadores.verificar_datos
 python src/ingesta/run_bronze.py
 # ⏱️ Tiempo estimado: 5-15 minutos
 
-# 3. Verifica que se creó datos/bronze/
-ls datos/bronze/
+# 3. Verifica que se creó data/bronze/
+ls data/bronze/
 
 # 4. Ejecuta Silver
 python src/transformacion/run_silver.py
 # ⏱️ Tiempo estimado: 2-5 minutos
 
-# 5. Verifica que se creó datos/plata/
-ls datos/plata/
+# 5. Verifica que se creó data/silver/
+ls data/silver/
 
 # 6. Ejecuta Gold
 python src/transformacion/run_gold.py
 # ⏱️ Tiempo estimado: 1-2 minutos
 
-# 7. Verifica que se creó datos/oro/marts/latest/
-ls datos/oro/marts/latest/
+# 7. Verifica que se creó data/gold/marts/latest/
+ls data/gold/marts/latest/
 ```
 
 ---
@@ -160,7 +160,7 @@ ls datos/oro/marts/latest/
 Una vez completado el pipeline, la tabla analítica lista está en:
 
 ```
-datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
+data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet
 ```
 
 Para cargarla en Python:
@@ -169,7 +169,7 @@ Para cargarla en Python:
 import pandas as pd
 
 # Cargar el OBT (One Big Table)
-obt = pd.read_parquet("datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet")
+obt = pd.read_parquet("data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet")
 
 print(obt.shape)  # (3129, 23) — 3129 filas, 23 columnas
 print(obt.columns)  # Nombres de todas las columnas
@@ -224,7 +224,7 @@ Esto te dirá qué archivos faltan y dónde deben estar.
 
 ### ❓ ¿Necesito ejecutar todo de nuevo?
 
-**R:** No, a menos que cambien los datos originales. El OBT ya está listo en `datos/oro/marts/latest/` después de ejecutar los tres comandos.
+**R:** No, a menos que cambien los datos originales. El OBT ya está listo en `data/gold/marts/latest/` después de ejecutar los tres comandos.
 
 ---
 
@@ -287,11 +287,11 @@ pip install -e .
 - [ ] Instalaste dependencias con `pip install -e .`
 - [ ] Ejecutaste `python -m src.validadores.verificar_datos` y viste ✅
 - [ ] Ejecutaste `python src/ingesta/run_bronze.py`
-- [ ] Se creó la carpeta `datos/bronze/` con archivos
+- [ ] Se creó la carpeta `data/bronze/` con archivos
 - [ ] Ejecutaste `python src/transformacion/run_silver.py`
-- [ ] Se creó la carpeta `datos/plata/` con archivos
+- [ ] Se creó la carpeta `data/silver/` con archivos
 - [ ] Ejecutaste `python src/transformacion/run_gold.py`
-- [ ] Se creó `datos/oro/marts/latest/mart_*.parquet` (el OBT final)
+- [ ] Se creó `data/gold/marts/latest/mart_*.parquet` (el OBT final)
 
 Si todos los ✅ están marcados, **¡el pipeline funciona correctamente!**
 

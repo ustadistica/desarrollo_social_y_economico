@@ -65,7 +65,7 @@ Para evitar dependencias circulares y rutas absolutas fallidas:
 - No use `sys.path.append` en scripts productivos.
 
 ### Estructura de Datos
-- **Bronze:** Nunca modifique manualmente los archivos en `datos/bronze/`.
+- **Bronze:** Nunca modifique manualmente los archivos en `data/bronze/`.
 - **Git Tracking:** No suba archivos `.parquet`, `.csv` o `.xlsx` pesados. Use el `.gitignore` proporcionado.
 
 ---

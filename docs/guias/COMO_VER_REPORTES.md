@@ -147,7 +147,8 @@ pip install -r requirements.txt
 
 ### 3.5. Regenerar el reporte HHI
 
-Es el más rápido (segundos):
+Si los CSV ya existen, el reporte se regenera en segundos. Si no existen, el
+script recalcula primero el HHI desde Silver transaccional:
 
 ```bash
 python scripts/generar_graficas_hhi.py
@@ -158,16 +159,16 @@ Salida esperada en consola:
 ```
 Cargando datos HHI...
   hhi_por_anio        : 9 filas
-  hhi_por_nivel       : 15 filas
-  HHI_CRUCE_SECOP_DANE: 432 filas
+  hhi_por_nivel       : 36 filas
+  HHI_CRUCE_SECOP_DANE: 11,792 filas
 
 Generando figuras...
-  ✓ artifacts/hhi/hhi_tendencia_anual.png
-  ✓ artifacts/hhi/hhi_por_nivel.png
-  ✓ artifacts/hhi/hhi_distribucion_municipal.png
+  OK artifacts/hhi/hhi_tendencia_anual.png
+  OK artifacts/hhi/hhi_por_nivel.png
+  OK artifacts/hhi/hhi_distribucion_municipal.png
 
 Generando reporte HTML...
-  ✓ artifacts/hhi/hhi_report.html
+  OK artifacts/hhi/hhi_report.html
 ```
 
 Luego abre `artifacts/hhi/hhi_report.html` en tu navegador.
@@ -250,15 +251,18 @@ desarrollo_social_y_economico/
   HHI = 10.000.
 - **Figura 1**: Evolución del HHI promedio nacional 2018-2026, con valor
   real, número de contratos y municipios por año.
-- **Figura 2**: HHI por orden de entidad (Nacional vs Territorial).
-- **Figura 3**: Histograma de las 432 observaciones (municipio × año ×
-  nivel) del cruce, segmentado por la escala estándar HHI
+- **Figura 2**: HHI por orden de entidad (`NACIONAL`, `TERRITORIAL`,
+  `OTRO`, `NO_DEFINIDO`).
+- **Figura 3**: Histograma de las 11,792 observaciones (municipio × año ×
+  orden) del cruce, segmentado por la escala estándar HHI
   (convención DOJ/FTC).
 - Tabla resumen del HHI promedio anual.
 
 Todas las cifras provienen de los CSV de entrada producidos por
 `src/features/indicador_hhi_cruce.py`; no hay valores estimados ni
-interpolados.
+interpolados. Los contratos se leen desde Silver transaccional, se deduplican
+por `id_contrato` y los faltantes de `orden_entidad` quedan como
+`NO_DEFINIDO` en vez de imputarse como territoriales.
 
 ---
 
