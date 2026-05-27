@@ -226,29 +226,42 @@ Esto mezcla dos casos distintos: municipios que no contrataron y municipios que 
 
 ### 4.3 Qué se hizo para corregirlo
 
-La sección 6 fue reescrita por completo (`cell-0014` markdown y `cell-0015` code) y el resumen ejecutivo (`cell-0035`) ahora reporta las nuevas series:
+La sección 6 fue reescrita por completo (`cell-0014` markdown y `cell-0015` code) y el resumen ejecutivo (`cell-0035`) ahora reporta **una sola familia de indicadores de Gini**: inversión per cápita, con y sin Bogotá como sensibilidad.
 
-1. **Se cambió la métrica principal a Gini de inversión per cápita** (`monto / poblacion_censo_2018`). Es la única de las dos que puede interpretarse como indicador de política pública.
-2. **El Gini sobre monto absoluto se conserva pero renombrado** como *"Concentración geográfica del gasto"* (no como "desigualdad"), para dejar claro que es una métrica descriptiva, no de equidad.
-3. **Se reportan ambas series con y sin Bogotá D.C.** (`divipola_key = 11001`) como *workaround* para aproximar el filtro de orden nacional. Es un parche explícito: el filtro correcto sería por `orden_entidad ∈ {Territorial}`, pendiente de propagarse desde bronze a silver.
-4. **Se eliminó el `fillna(0)`**: el Gini se calcula sólo sobre municipios con `monto > 0`. Se reporta también el número de municipios usados cada año (`n_muni_con_monto>0`).
-5. **Cambio cosmético:** título de la sección y de los gráficos actualizado a *"Concentración geográfica del gasto y equidad territorial (Gini)"*.
+1. **Se eliminó por completo el reporte del Gini calculado sobre montos totales.** Ese indicador mezcla tamaño poblacional, sede institucional y volumen contable, por lo que no responde la pregunta de equidad territorial.
+2. **El Gini oficial pasa a ser el de inversión per cápita** (`inversion_total_monto / poblacion_censo_2018`). Esta normalización hace comparables municipios de tamaños muy distintos porque expresa la inversión como pesos por habitante.
+3. **Se conserva una sensibilidad sin Bogotá D.C.** (`divipola_key = 11001`) sólo para evaluar el sesgo de imputación del SECOP al municipio de la entidad contratante. No reemplaza un filtro estricto por `orden_entidad`; ese filtro sigue pendiente de propagarse desde bronze a silver.
+4. **Se eliminó el `fillna(0)`**: el Gini se calcula únicamente sobre municipios con `inversion_total_monto > 0` y `poblacion_censo_2018 > 0`. Así se evita mezclar municipios sin contratación observada con municipios sin reporte o sin dato válido.
+
+El cálculo implementado queda:
+
+```python
+sub_ipc = df_mun[
+    (df_mun[COL_AÑO] == año)
+    & (df_mun[COL_MONTO] > 0)
+    & (df_mun["poblacion_censo_2018"] > 0)
+].copy()
+sub_ipc["ipc"] = sub_ipc[COL_MONTO] / sub_ipc["poblacion_censo_2018"]
+gini_ipc = gini(sub_ipc["ipc"].values)
+```
+
+Para la sensibilidad sin Bogotá se aplica el mismo cálculo excluyendo `divipola_key = 11001`.
 
 ### 4.4 Valores nuevos y por qué ahora son creíbles
 
-| Año | Gini monto abs. | Gini monto sin Bogotá | **Gini IPC (equidad)** | Gini IPC sin Bogotá |
-|---:|---:|---:|---:|---:|
-| 2018 | 0.917 | 0.837 | **0.447** | 0.445 |
-| 2019 | 0.911 | 0.847 | **0.522** | 0.521 |
-| 2020 | 0.926 | 0.876 | **0.590** | 0.589 |
-| 2021 | 0.916 | 0.844 | **0.470** | 0.468 |
-| 2022 | 0.921 | 0.830 | **0.509** | 0.507 |
-| 2023 | 0.887 | 0.820 | **0.525** | 0.525 |
-| 2024 | 0.912 | 0.869 | **0.516** | 0.515 |
+| Año | **Gini IPC (equidad)** | Gini IPC sin Bogotá |
+|---:|---:|---:|
+| 2018 | **0.447** | 0.445 |
+| 2019 | **0.522** | 0.521 |
+| 2020 | **0.590** | 0.589 |
+| 2021 | **0.470** | 0.468 |
+| 2022 | **0.509** | 0.507 |
+| 2023 | **0.525** | 0.525 |
+| 2024 | **0.516** | 0.515 |
 
-La métrica principal (**Gini IPC**) se mueve en el rango **0.45 – 0.59**, que es consistente con la literatura sobre desigualdad territorial del gasto público en Colombia y con la naturaleza del país (alta dispersión real, pero no extrema). Que el Gini IPC con y sin Bogotá sean prácticamente iguales (≤ 0.002 de diferencia) confirma que el problema previo era el **monto absoluto**, no la composición municipal: cuando se neutraliza el tamaño poblacional con la división por habitantes, Bogotá deja de dominar el agregado.
+La métrica principal (**Gini IPC**) se mueve en el rango **0.45 – 0.59**, que es consistente con una distribución territorial desigual pero no extrema del gasto público por habitante. La serie con y sin Bogotá es prácticamente igual (≤ 0.002 de diferencia), lo que confirma que al normalizar por población Bogotá deja de dominar el indicador.
 
-El pico en 2020 (0.59) es coherente con el efecto de la pandemia: gasto público concentrado en pocos municipios para emergencia sanitaria. El descenso en 2021 (0.47) refleja la fase de reactivación y transferencias del programa de Ingreso Solidario.
+El pico en 2020 (0.59) es coherente con el efecto de la pandemia: la contratación de emergencia se concentró en menos territorios. El descenso en 2021 (0.47) refleja una distribución más extendida durante la reactivación.
 
 ### 4.5 Casos donde se requiere aclaración explícita en cualquier reporte
 
@@ -256,10 +269,8 @@ Estos puntos **deben mencionarse siempre** que se cite cualquier número de la s
 
 | Métrica | Aclaración obligatoria |
 |---|---|
-| **Gini de monto absoluto** | No es una medida de equidad. Mide concentración geográfica del registro contable. Su valor estructuralmente alto (~0.9) se debe a (i) escala demográfica y (ii) imputación de los contratos del orden nacional al municipio de la entidad contratante. |
-| **Gini de monto absoluto con Bogotá** | Bogotá D.C. (`11001`) acumula 34–55 % del monto anual por ser sede del orden nacional, no por concentración real de gasto en su territorio. |
-| **Gini de monto absoluto sin Bogotá** | Es un *proxy* para "orden territorial". No es un filtro estricto: entidades nacionales con sede fuera de Bogotá (sedes regionales, gobernaciones) siguen incluidas. El filtro estricto requeriría incorporar `orden_entidad` desde bronze al silver de SECOP. |
-| **Gini IPC** | Métrica principal. Reportarla como "Gini de inversión per cápita". Aclarar que el denominador es `poblacion_censo_2018`, no proyección DANE anual (limitación del mart actual — ver sección 4.6 "Limitaciones residuales sin corregir en esta iteración"). |
+| **Gini IPC** | Es la métrica oficial de equidad territorial. Reportarla como "Gini de inversión per cápita". El denominador es `poblacion_censo_2018`, no proyección DANE anual (limitación del mart actual — ver sección 4.6 "Limitaciones residuales sin corregir en esta iteración"). |
+| **Gini IPC sin Bogotá** | Es una sensibilidad ante el sesgo de imputación del SECOP al municipio de la entidad contratante. No debe interpretarse como filtro estricto de orden territorial. |
 | **Cualquier IPC year-over-year** | Las variaciones interanuales del IPC reflejan variaciones del numerador (monto), no del denominador. La población usada es la del censo 2018 propagada como constante. |
 
 ### 4.6 Limitaciones residuales sin corregir en esta iteración

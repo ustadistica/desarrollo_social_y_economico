@@ -80,11 +80,21 @@ def create_cubo_territorial_sectorial(
         
         # Agregar tejido productivo para cálculo de indicadores
         if fact_tejido_productivo_df is not None and not fact_tejido_productivo_df.empty:
-            tp_agg = fact_tejido_productivo_df.groupby('divipola_municipio').agg({
-                'total_micronegocios': 'sum',
-                'economia_popular_unidades': 'sum',
-            }).reset_index()
-            cubo = cubo.merge(tp_agg, on='divipola_municipio', how='left')
+            tp = fact_tejido_productivo_df.copy()
+            if 'divipola_municipio' not in tp.columns and 'divipola_key' in tp.columns:
+                tp['divipola_municipio'] = tp['divipola_key']
+            if 'total_micronegocios' not in tp.columns and 'volumen_micronegocios_exp' in tp.columns:
+                tp['total_micronegocios'] = tp['volumen_micronegocios_exp']
+
+            agg_cols = {}
+            if 'total_micronegocios' in tp.columns:
+                agg_cols['total_micronegocios'] = 'sum'
+            if 'economia_popular_unidades' in tp.columns:
+                agg_cols['economia_popular_unidades'] = 'sum'
+
+            if agg_cols and 'divipola_municipio' in tp.columns:
+                tp_agg = tp.groupby('divipola_municipio').agg(agg_cols).reset_index()
+                cubo = cubo.merge(tp_agg, on='divipola_municipio', how='left')
     
     # Agregar medidas calculadas
     if 'monto_contrato' in cubo.columns:
@@ -326,6 +336,13 @@ def _aggregate_vulnerabilidad_anual(fact_vulnerabilidad_df: pd.DataFrame) -> pd.
 def _aggregate_tejido_productivo_anual(fact_tejido_productivo_df: pd.DataFrame) -> pd.DataFrame:
     """Agregar tejido productivo por municipio y año."""
     df = fact_tejido_productivo_df.copy()
+    if 'divipola_municipio' not in df.columns and 'divipola_key' in df.columns:
+        df['divipola_municipio'] = df['divipola_key']
+    if 'anio' not in df.columns and 'anio_key' in df.columns:
+        df['anio'] = df['anio_key']
+    if 'total_micronegocios' not in df.columns and 'volumen_micronegocios_exp' in df.columns:
+        df['total_micronegocios'] = df['volumen_micronegocios_exp']
+
     if 'fecha_key' in df.columns:
         df['anio'] = (df['fecha_key'].fillna(0) // 10000).astype(int)
     

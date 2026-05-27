@@ -11,9 +11,9 @@ Decisiones clave:
     (que producía ~13k filas mayoritariamente vacías).
   - fact_censo (CNPV 2018): se propaga por divipola_key a todos los años
     como atributo fijo (censo base).
-  - fact_demografia / fact_micronegocios: se unen tanto por municipio
-    como por depto. agregado (divipola_key XX000) porque EMICRON y
-    proyecciones DANE son de granularidad DEPARTAMENTAL.
+  - fact_demografia / fact_micronegocios: se unen por su divipola_key
+    natural. EMICRON y proyecciones DANE quedan en filas departamentales
+    XX000; no se replican en municipios para evitar fan-out.
   - Derivados: indicador_inversion_per_capita, densidad_micronegocios.
   - Se marca la celda "componente social" explícitamente (poblacion y censo)
     y "componente economico" (contratación y micronegocios) para trazabilidad.
@@ -136,9 +136,9 @@ def build_datamart(gold_path: Path) -> Dict[str, Any]:
     df = df.merge(f_cnt, on=["divipola_key", "anio_key"], how="left")
 
     # fact_micronegocios y fact_demografia son de granularidad DEPARTAMENTAL
-    # (divipola XX000). Se unen por divipola_key para que SOLAMENTE el
-    # agregado departamental contenga este valor, evitando duplicar 
-    # poblaciones y negocios en cada municipio.
+    # (divipola XX000). Se unen directo por divipola_key para que solamente el
+    # agregado departamental contenga este valor, evitando duplicar poblaciones
+    # y negocios en cada municipio.
     df = df.merge(f_mic, on=["divipola_key", "anio_key"], how="left")
     df = df.merge(f_dem, on=["divipola_key", "anio_key"], how="left")
 

@@ -15,7 +15,6 @@ import logging
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
-import shutil
 
 from src.config.settings import Settings
 from src.transformacion.silver.cleaners.clean_cnpv import clean_cnpv_data
@@ -91,19 +90,11 @@ class TransformationOrchestrator:
             self.logger.warning(f"Directorio Bronze no encontrado para {source_name}: {source_bronze_path}")
             return {"status": "skipped", "error": f"Directorio Bronze no encontrado: {source_bronze_path}"}
             
-        source_silver_path = self.silver_path / source_name
-        
-        if force and source_silver_path.exists():
-            self.logger.info(f"Modo force: Limpiando directorio silver previo: {source_silver_path}")
-            shutil.rmtree(source_silver_path)
-            
-        source_silver_path.mkdir(parents=True, exist_ok=True)
-        
         try:
             cleaner_func = config["cleaner"]
             result = cleaner_func(
                 bronze_path=source_bronze_path,
-                silver_path=source_silver_path,
+                silver_path=self.silver_path,
                 settings=self.settings
             )
             

@@ -114,14 +114,14 @@ pip install notebook
 ## Paso 4 — Verificar que los datos estén listos
 
 El notebook necesita un archivo de datos llamado
-`datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet`.
+`data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet`.
 
 Para verificar que existe, ejecuta:
 
 ```bash
 python -c "
 from pathlib import Path
-p = Path('datos/oro/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet')
+p = Path('data/gold/marts/latest/mart_desarrollo_social_economico_municipio_anio.parquet')
 print('DATOS OK' if p.exists() else 'FALTA EL MART — ve al Paso 4b')
 "
 ```
@@ -147,9 +147,9 @@ Esto tarda entre 10 y 30 minutos según tu computador.
 
 **Opción B2:** Pídele a alguien del equipo que te comparta el archivo
 `mart_desarrollo_social_economico_municipio_anio.parquet` y colócalo en
-`datos/oro/marts/latest/`. Asegúrate también de tener:
-- `datos/cruce_secop_dane_sprint2.parquet`
-- `datos/etnia_checkpoint.parquet`
+`data/gold/marts/latest/`. Asegúrate también de tener:
+- `data/cruce_secop_dane_sprint2.parquet`
+- `data/etnia_checkpoint.parquet`
 
 ---
 
@@ -233,7 +233,7 @@ El notebook tiene 16 secciones, cada una con gráficas y tablas:
 | **3. Distribución del monto** | Histogramas por año (escala logarítmica) |
 | **4. Vulnerabilidad (NBI e IPM)** | Boxplots de pobreza por año |
 | **5. Top 15 municipios** | Ranking de inversión por año |
-| **6. Coeficiente de Gini** | Desigualdad en la distribución de contratos |
+| **6. Coeficiente de Gini** | Equidad territorial vía inversión per cápita |
 | **7. NBI vs Monto** | Dispersión: ¿reciben más los más pobres? |
 | **8. Departamentos y regiones** | Evolución por departamento y región |
 | **9. Cuadrantes de abandono** | Alta pobreza + poca inversión (municipios en rojo) |
@@ -272,7 +272,7 @@ Instala la extensión **Jupyter** desde el Marketplace de VS Code
 ### La ejecución se detiene en alguna celda con error rojo
 
 Lee el mensaje de error. Los más comunes son:
-- `KeyError: 'nbi_pct'` → el archivo `cruce_secop_dane_sprint2.parquet` no está en `datos/`
+- `KeyError: 'nbi_pct'` → el archivo `cruce_secop_dane_sprint2.parquet` no está en `data/`
 - `MemoryError` → cierra otras aplicaciones y vuelve a intentar
 - Cualquier otro: comparte el mensaje de error en el canal del equipo
 

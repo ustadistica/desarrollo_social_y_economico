@@ -45,42 +45,42 @@ fuentes:
       No es posible cruzar NIT directamente. Usar agregaciones por DIVIPOLA.
 
   # =========================================================================
-  # DANE - Censo Económico Nacional Único (CENU)
+  # DANE - Encuesta de Micronegocios (EMICRON)
   # =========================================================================
-  dane_cenu:
-    nombre: "Censo Económico Nacional Único"
+  emicron:
+    nombre: "Encuesta de Micronegocios 2019-2024"
     entidad: "DANE"
     descripcion: >
-      Tejido productivo nacional, micronegocios, economía popular,
-      formalidad/informalidad por sector económico (CIIU).
+      Encuesta muestral de micronegocios. El pipeline usa un modulo
+      autoritativo por unidad muestral y calcula volumen expandido con
+      factor_expansion validado.
     vigencia:
-      tipo: "periodica"
-      periodo_base: "2024"
-      frecuencia: "trimestral"
-      auto_update: true
+      tipo: "historica"
+      periodo: "2019-2024"
+      frecuencia: "anual"
+      auto_update: false
     extraccion:
-      metodo: "ANDA_API"
-      plataforma: "ANDA / FTP DANE"
-      base_url: "https://anda.dane.gov.co/index.php/catalog"
-      dataset_id: "CENU-2024"
-      formato: "agregados_municipales"
+      metodo: "CSV_LOCAL"
+      plataforma: "DANE - Microdatos EMICRON"
+      formato: "CSV multi-modulo"
       autenticacion:
         requerida: false
       variables_clave:
-        - total_micronegocios
-        - micronegocios_formales
-        - micronegocios_informales
-        - economia_popular_unidades
-        - economia_popular_empleo
-        - codigo_ciiu
-        - divipola_municipio
-      frecuencia_actualizacion: "Trimestral"
-    unidad_geografica: "municipio"
-    llave_geografica: "divipola_municipio"
-    clasificacion_economica: "CIIU Rev. 4 A.C."
+        - DIRECTORIO
+        - SECUENCIA_P
+        - SECUENCIA_ENCUESTA
+        - COD_DEPTO
+        - F_EXP
+        - fex_c
+        - FEX_C
+      frecuencia_actualizacion: "Anual"
+    unidad_geografica: "departamento"
+    llave_geografica: "divipola_key departamental XX000"
+    factor_expansion: "F_EXP valido o fallback fex_c/FEX_C por llaves de encuesta"
     notas: |
-      Identifica unidades de economía popular según definición DANE.
-      Permite análisis de formalización por sector y territorio.
+      EMICRON es muestral. No se permite estimar sin factor validado. Si F_EXP
+      viene en cero, Silver debe fusionar archivos separados de factores antes
+      de agregar a departamento-año.
 
   # =========================================================================
   # SECOP I - Procesos de Compra Pública
@@ -259,15 +259,19 @@ mapeo_clasificaciones:
       Mapeo muchos-a-muchos basado en descripción semántica.
 
 # =========================================================================
-# Factores de Expansión DANE
+# Factores de Expansión EMICRON
 # =========================================================================
-factores_expansion:
-  descripcion: "Factores de expansión para proyecciones de población"
-  fuente: "DANE - Proyecciones de Población 2018-2035"
-  archivo: "utils/expansion_factors.py"
+factor_expansion_emicron:
+  descripcion: "Factores EMICRON leidos desde Bronze y fusionados en Silver"
+  fuente: "DANE - archivos de factores EMICRON por anio"
+  archivo: "src/transformacion/silver/cleaners/clean_emicron.py"
   periodos:
+    - "2019"
+    - "2020"
+    - "2021"
+    - "2022"
+    - "2023"
     - "2024"
-    - "2025"
   notas: |
-    Necesarios para expandir muestras censales a nivel poblacional.
-    Actualizar con cada nueva proyección del DANE.
+    Prioridad canonica: F_EXP cuando es valido; si no, fex_c/FEX_C y luego
+    fex_micro_dpto/FEX_MICRO_DPTO como respaldo.

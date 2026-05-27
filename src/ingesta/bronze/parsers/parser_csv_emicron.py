@@ -76,7 +76,7 @@ def parse_emicron_csv(
     año (e.g., "EMICRON 2024"), se procesa solo ese año.
 
     Cada CSV se guarda como un Parquet independiente en:
-        datos/bronze/emicron/<año>/emicron_<modulo>_<año>_raw.parquet
+        data/bronze/emicron/<año>/emicron_<modulo>_<año>_raw.parquet
 
     Parameters:
     - csv_path: Ruta al directorio base o a una carpeta EMICRON de un año

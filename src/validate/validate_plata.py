@@ -30,13 +30,13 @@ def validate_plata_layer(
         plata_path = settings.PLATA_PATH
     
     tablas_esperadas = [
-        'dim_municipio',
-        'dim_tiempo',
-        'dim_sector_ciiu',
-        'dim_sector_unspsc',
-        'fact_vulnerabilidad',
-        'fact_tejido_productivo',
-        'fact_contratacion',
+        'silver_cnpv_agregado',
+        'silver_emicron_agregado',
+        'silver_proyecciones_agregado',
+        'silver_secop_i_agregado',
+        'silver_secop_ii_agregado',
+        'silver_secop_i_transaccional',
+        'silver_secop_ii_transaccional',
     ]
     
     resultados = {
@@ -129,12 +129,52 @@ def _validate_plata_table(
         'warnings': 0,
     }
     
-    # Validaciones específicas por tabla
-    if tabla.startswith('dim_'):
+    # Validaciones especificas por tabla
+    if tabla == 'silver_emicron_agregado':
+        resultado.update(_validate_emicron_agregado(df))
+    elif tabla.startswith('dim_'):
         resultado.update(_validate_dimension(tabla, df))
-    elif tabla.startswith('fact_'):
+    elif tabla.startswith('fact_') or tabla.startswith('silver_'):
         resultado.update(_validate_fact(tabla, df, todas_las_tablas))
     
+    return resultado
+
+
+def _validate_emicron_agregado(df: pd.DataFrame) -> Dict[str, Any]:
+    """Validar EMICRON Silver con expansion corregida."""
+    resultado = {'errores': 0, 'warnings': 0}
+    required = {
+        'divipola_key',
+        'anio_key',
+        'volumen_micronegocios_exp',
+        'n_registros_encuesta',
+    }
+    missing = sorted(required - set(df.columns))
+    if missing:
+        resultado['errores'] += 1
+        resultado['columnas_faltantes'] = missing
+        return resultado
+
+    if df.duplicated(subset=['divipola_key', 'anio_key']).any():
+        resultado['errores'] += 1
+        resultado['duplicados_pk'] = int(df.duplicated(subset=['divipola_key', 'anio_key']).sum())
+
+    annual = df.groupby('anio_key').agg(
+        volumen=('volumen_micronegocios_exp', 'sum'),
+        registros=('n_registros_encuesta', 'sum'),
+    )
+    zero_years = annual[(annual['registros'] > 0) & (annual['volumen'] <= 0)].index.tolist()
+    if zero_years:
+        resultado['errores'] += 1
+        resultado['anios_con_expansion_cero'] = [int(y) for y in zero_years]
+
+    expected_years = set(range(2019, 2025))
+    actual_years = set(pd.to_numeric(df['anio_key'], errors='coerce').dropna().astype(int))
+    missing_years = sorted(expected_years - actual_years)
+    if missing_years:
+        resultado['warnings'] += 1
+        resultado['anios_faltantes'] = missing_years
+
     return resultado
 
 
@@ -275,10 +315,9 @@ def _validate_referential_integrity(tablas: Dict[str, pd.DataFrame]) -> Dict[str
     
     # Definir relaciones FK -> PK
     relaciones = [
-        ('fact_vulnerabilidad', 'dim_municipio', 'divipola_municipio', 'divipola_municipio'),
-        ('fact_tejido_productivo', 'dim_municipio', 'divipola_municipio', 'divipola_municipio'),
-        ('fact_contratacion', 'dim_municipio', 'divipola_municipio', 'divipola_municipio'),
-        ('fact_contratacion', 'dim_sector_unspsc', 'codigo_unspsc', 'codigo_unspsc'),
+        # Las tablas Silver actuales son agregados autosuficientes. La
+        # integridad contra dimensiones se valida en Gold, donde existen las
+        # dimensiones conformadas.
     ]
     
     for hecho, dim, fk, pk in relaciones:

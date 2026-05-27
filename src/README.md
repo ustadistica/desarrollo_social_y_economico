@@ -14,7 +14,7 @@ src/
 │   │   ├── ingesta_cnpv.py          # CNPV 2018 (33 carpetas por depto)
 │   │   ├── ingesta_secop_i.py       # SECOP I (histórico de contratos)
 │   │   ├── ingesta_secop_ii.py      # SECOP II (contratos recientes, ~9.6GB)
-│   │   ├── ingesta_emicron.py       # EMICRON (encuesta micronegocios)
+│   │   ├── parser_csv_emicron.py    # EMICRON (encuesta micronegocios)
 │   │   └── ingesta_proyecciones.py  # DANE (proyecciones poblacionales)
 │   └── extract/                     # Conectores a APIs
 │       └── sodapy_connector.py      # Socrata/datos.gov.co
@@ -28,7 +28,7 @@ src/
 │   │   │   ├── clean_secop_i.py     # Normaliza columnas, parsea moneda, DIVIPOLA
 │   │   │   ├── clean_secop_ii.py    # ⚠️ FIX: regex para moneda colombiana
 │   │   │   ├── clean_cnpv.py        # Agregación CNPV a municipio
-│   │   │   ├── clean_emicron.py     # Expansión con factores fex_c
+│   │   │   ├── clean_emicron.py     # Expansión con factor_expansion validado
 │   │   │   └── clean_proyecciones.py # Agregación DANE a municipio-año
 │   │   └── validadores/             # Pandera schema contracts
 │   │       └── schema_validation.py
@@ -63,17 +63,17 @@ CSV/APIs (datos originales)
 src/ingesta/bronze/ → BRONZE
     (Parquet crudo, sin transformación)
     ↓
-datos/bronze/<fuente>/
+data/bronze/<fuente>/
     ↓
 src/transformacion/silver/ → SILVER
     (Limpieza, normalización, agregación municipio-año)
     ↓
-datos/plata/<fuente>/
+data/silver/
     ↓
 src/transformacion/gold/ → GOLD
     (Dimensiones, hechos, OBT analítico)
     ↓
-datos/oro/
+data/gold/
   ├── dim_territorio.parquet
   ├── dim_tiempo.parquet
   ├── fact_*.parquet
@@ -107,10 +107,10 @@ python src/run_all.py  # Ejecuta Bronze → Silver → Gold
 
 | Capa | Ubicación | Descripción |
 |------|-----------|-------------|
-| **Bronze** | `datos/bronze/<fuente>/` | Datos crudos en Parquet (sin transformación) |
-| **Silver** | `datos/plata/` | Agregados municipio-año por fuente |
-| **Gold** | `datos/oro/` | Dimensiones + Facts + OBT analítico |
-| **OBT** | `datos/oro/marts/latest/` | Tabla final lista para análisis |
+| **Bronze** | `data/bronze/<fuente>/` | Datos crudos en Parquet (sin transformación) |
+| **Silver** | `data/silver/` | Agregados municipio-año por fuente |
+| **Gold** | `data/gold/` | Dimensiones + Facts + OBT analítico |
+| **OBT** | `data/gold/marts/latest/` | Tabla final lista para análisis |
 
 ---
 
@@ -131,7 +131,7 @@ python src/run_all.py  # Ejecuta Bronze → Silver → Gold
 ### 3. Mart: Per-cápita siempre NaN (granularidad mismatch)
 - **Archivo:** `src/transformacion/gold/build_mart.py` (líneas 139-148)
 - **Problema:** `fact_demografía` (depto XX000) vs `fact_contratacion` (municipio XXXXX) → cero intersección en join
-- **Solución:** Derivar código depto `divipola[:2] + "000"` y hacer lookup departamental
+- **Solución:** Conservar indicadores departamentales en códigos `XX000` y no replicarlos en municipios
 - **Resultado:** 0/3,129 per-cápita → 1,034/3,129 calculados ✅
 
 ---

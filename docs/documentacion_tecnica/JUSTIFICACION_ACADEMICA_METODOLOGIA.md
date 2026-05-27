@@ -494,7 +494,7 @@ Prueba de Aditivo:
 
 ---
 
-## 7. Fundamentos: Joins Inteligentes (Lookup Departamental)
+## 7. Fundamentos: Joins con Granularidad Departamental
 
 ### 7.1 Problema: Granularidad Mismatch
 
@@ -514,9 +514,9 @@ Join on divipola_key:
 Resultado: 0 matches (100% fallo)
 ```
 
-### 7.2 Solución: Agregación Implícita
+### 7.2 Solución vigente: Conservación del grano departamental
 
-**Idea:** Municipios heredan atributos del depto (su contenedor jerárquico).
+**Idea:** Los hechos departamentales se conservan en las filas `XX000` y no se replican en municipios.
 
 ```
 DIVIPOLA: XX000 es "depto XX, todos municipios"
@@ -525,7 +525,7 @@ DIVIPOLA: XX000 es "depto XX, todos municipios"
 Extracción:
   divipola_key = "05001" → depto = "05001"[:2] + "000" = "05000"
   
-Join corregido:
+Join vigente:
   05000 = 05000 ✓
 ```
 
@@ -534,26 +534,26 @@ Join corregido:
 **Concepto:** Municipios ⊂ Departamentos ⊂ Región ⊂ País (containment hierarchy)
 
 ```
-Si dato existe en nivel superior (depto) pero no inferior (municipio),
-es válido inferir que cada municipio del depto tiene ese valor.
+Si un dato existe en nivel superior (depto) pero no inferior (municipio),
+se conserva en el nivel superior para no multiplicar totales departamentales.
 
 Ejemplo:
-  "Población Antioquia 2019 = 6.8M" → Cada municipio hereda 6.8M
-  (No multiplicamos, es el TODO)
+  "Micronegocios Antioquia 2019 = X" → se mantiene en 05000
+  (No se copia a 05001, 05002, etc.)
 ```
 
 ### 7.4 Alternativas Consideradas
 
 | Alternativa | Descripción | Ventaja | Desventaja |
 |-------------|-------------|---------|-----------|
-| **Lookup Depto** | Municipios heredan depto | Simple, correcto | Homogeniza dentro depto |
+| **Conservar Depto** | Indicadores departamentales quedan en XX000 | Evita fan-out | No rellena municipios |
 | **Disagregación** | Estimar por proporción | Más granular | Requiere supuestos (población?) |
 | **Interpolación** | Estimar con tiempo | Temporal | Complejo, error acumulado |
 | **Imputación ML** | Predecir con covariables | Sofisticado | Caja negra, difícil validar |
 
-**Decisión: Lookup Depto**
-- Rationale: DANE mismo no publica municipales
-- Validez: Inferencia válida por jerarquía geográfica
+**Decisión: Conservar Depto**
+- Rationale: DANE no publica EMICRON municipal en este pipeline
+- Validez: evita duplicar estimaciones muestrales departamentales
 - Transparencia: Métodos simples, auditables
 
 ---
@@ -643,10 +643,10 @@ https://www.dane.gov.co/... (URL oficial, fuera de scope)
 
 **Causa:** DANE no publica proyecciones municipales
 
-**Impacto:** Todos los municipios heredan población del depto
-- Medellín ≠ Bello pero ambos herdan 6.8M Antioquia
+**Impacto:** La población departamental queda en `XX000`
+- Medellín y Bello mantienen sus filas municipales sin recibir el total departamental como si fuera propio
 
-**Validez Estadística:** Jerárquica válida (municipios ⊂ depto), pero homogeniza
+**Validez Estadística:** Conserva el grano original y evita fan-out
 
 **Mejora Posible:** Disagregación por densidad poblacional histórica
 
