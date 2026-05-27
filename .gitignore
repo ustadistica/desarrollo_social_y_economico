@@ -46,3 +46,7 @@ modelo_estrella_duckdb/*.duckdb
 modelo_estrella_duckdb/*.db
 modelo_estrella_pyspark/
 *.db
+
+# Intermedios de la generacion de presentacion
+artifacts/presentacion/_slides_png/
+artifacts/presentacion/_thumbs/
